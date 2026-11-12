@@ -44,10 +44,10 @@ test:
 	uv run pytest
 
 test-unit:
-	uv run pytest tests/unit
+	uv run pytest src/tests/unit
 
 test-integration:
-	uv run pytest tests/integration -m integration
+	uv run pytest src/tests/integration -m integration
 
 test-cov:
 	uv run pytest --cov=src --cov-report=term-missing --cov-report=xml

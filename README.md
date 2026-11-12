@@ -53,10 +53,16 @@ Install hooks with `uv run pre-commit install`.
 
 ## Architecture
 
-Production code lives directly under `src/` and follows Clean Architecture:
-`drivers`, `domain`, `application`, `adapters`, `bootstrap`, and `config`.
-Unit and integration tests mirror the source package structure under
-`tests/unit` and `tests/integration`.
+Production code lives directly under `src/` and follows the requested
+Clean Architecture layout:
+
+- `domain/entities` and `domain/value_object`
+- `ports/repositories` and `ports/services`
+- `adapters/repositories` and `adapters/services`
+- `drivers/core`, `drivers/database`, `drivers/routers`, and `drivers/schemas`
+- `use_cases` for future application workflows
+
+Unit and integration tests live under `src/tests`, organized by concern.
 
 ## Configuration
 

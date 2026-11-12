@@ -21,7 +21,7 @@ RUN groupadd --system app && useradd --system --gid app --create-home app
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY alembic.ini ./
-COPY alembic ./alembic
+COPY src/drivers/database/alembic ./src/drivers/database/alembic
 COPY src ./src
 RUN chown -R app:app /app
 USER app
