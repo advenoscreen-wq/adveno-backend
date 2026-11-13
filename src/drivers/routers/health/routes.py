@@ -1,6 +1,8 @@
 """Operational health endpoints."""
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException
+
+from drivers.routers.dependencies import DatabaseReady
 
 router = APIRouter(tags=["health"])
 
@@ -12,11 +14,8 @@ async def health() -> dict[str, str]:
 
 
 @router.get("/ready", summary="Dependency readiness")
-async def ready(request: Request) -> dict[str, str]:
+async def ready(database_ready: DatabaseReady) -> dict[str, str]:
     """Report readiness based on configured critical dependencies."""
-    database_ready = await request.app.state.check_database()
     if not database_ready:
-        from fastapi import HTTPException
-
         raise HTTPException(status_code=503, detail="Database is unavailable")
     return {"status": "ready"}

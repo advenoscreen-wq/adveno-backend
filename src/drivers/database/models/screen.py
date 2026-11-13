@@ -33,7 +33,7 @@ class ScreenModel(Base):
 
     id: Mapped[UUID] = mapped_column(UUIDColumn, primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(
-        UUIDColumn, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+        UUIDColumn, ForeignKey("public.app_users.id", ondelete="RESTRICT"), nullable=False
     )
     screen_code: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)

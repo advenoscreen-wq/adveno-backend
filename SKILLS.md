@@ -188,7 +188,8 @@ change.
   ---------------------------------------------------------------------
 
 Do not add Redis, Celery, a message broker, or another database unless a
-confirmed requirement justifies it.
+confirmed requirement justifies it. Redis is approved when it is used as
+the application cache/state service required by the current architecture.
 
 ### 3.1 Supabase and PostgreSQL
 
@@ -378,7 +379,26 @@ A use case should have one clear responsibility. For example:
 Do not combine unrelated operations into one use case merely to reduce
 the number of files.
 
-### 4.4 Composition root
+### 4.4 Application use-case conventions
+
+-   Organise application operations by endpoint or business operation.
+    Each endpoint/application operation should have its own focused use
+    case; names such as `oauth_signin_use_case` and
+    `oauth_callback_use_case` are examples of this convention, not
+    features to implement automatically.
+-   Group commands for a feature in that feature's `commands.py` rather
+    than scattering command definitions across unrelated files.
+-   Use cases MUST be callable through `__call__`.
+-   Return a domain entity or application DTO when it is the appropriate
+    result. If an application-specific result shape is needed that is
+    neither a domain object nor a DTO, define its dataclass in the
+    feature's `results.py`.
+-   Keep route-specific dependency injection in the relevant `routes`
+    dependency module (for example, `routes/dependencies.py`). Routes
+    should resolve dependencies and translate transport concerns, then
+    invoke the use case.
+
+### 4.5 Composition root
 
 Construct concrete implementations in `bootstrap/` or the approved
 composition root:

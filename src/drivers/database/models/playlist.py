@@ -28,7 +28,7 @@ class PlaylistModel(Base):
 
     id: Mapped[UUID] = mapped_column(UUIDColumn, primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(
-        UUIDColumn, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+        UUIDColumn, ForeignKey("public.app_users.id", ondelete="RESTRICT"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)

@@ -14,6 +14,11 @@ Business endpoints will be documented here when approved and implemented.
 
 ## BFF OAuth authentication
 
+### `GET /api/v1/auth/google/request`
+
+Creates a single-use OAuth state in the cache and redirects the browser to
+the configured Google OAuth authorization URL.
+
 ### `GET /api/v1/auth/oauth/login`
 
 Starts the configured Supabase OAuth flow. The backend generates and stores a
