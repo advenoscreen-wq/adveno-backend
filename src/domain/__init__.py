@@ -19,7 +19,14 @@ from domain.exceptions import (
     PersistenceConflictError,
     PersistenceError,
 )
-from domain.value_object import MediaStatus, MediaType, ScreenStatus, SyncStatus, UserRole
+from domain.value_object import (
+    MediaStatus,
+    MediaType,
+    PairingType,
+    ScreenStatus,
+    SyncStatus,
+    UserRole,
+)
 
 __all__ = [
     "AdminProfile",
@@ -31,6 +38,7 @@ __all__ = [
     "MediaType",
     "PersistenceConflictError",
     "PersistenceError",
+    "PairingType",
     "Playlist",
     "PlaylistItem",
     "Screen",

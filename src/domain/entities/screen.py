@@ -15,7 +15,7 @@ class Screen:
 
     user_id: UUID
     id: UUID = field(default_factory=uuid4)
-    screen_code: str = ""
+    screen_code: str = field(default_factory=lambda: uuid4().hex.upper())
     name: str = ""
     device_model: str | None = None
     app_version: str | None = None

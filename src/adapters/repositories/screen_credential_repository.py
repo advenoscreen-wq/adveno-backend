@@ -42,6 +42,10 @@ class SqlAlchemyScreenCredentialRepository:
         return [to_credential(model) for model in result]
 
     async def save(self, credential: ScreenCredential) -> ScreenCredential:
+        if credential.revoked_at is None and await self.get_active_credentials_by_screen(
+            credential.screen_id
+        ):
+            raise PersistenceError("screen already has an active credential")
         model = ScreenCredentialModel()
         apply_credential(credential, model)
         self.session.add(model)
