@@ -20,15 +20,23 @@ class ScreenPairingSessionModel(Base):
     __table_args__ = (
         UniqueConstraint("token_hash", name="uq_pairing_sessions_token_hash"),
         CheckConstraint(
-            "pairing_type IN ('NEW_SCREEN', 'RECONNECT_EXISTING')",
+            "pairing_type IS NULL OR pairing_type IN ('NEW_SCREEN', 'RECONNECT_EXISTING')",
             name="ck_pairing_sessions_pairing_type",
         ),
         CheckConstraint(
+            "(pairing_type IS NULL AND screen_id IS NULL AND paired_at IS NULL "
+            "AND status IN ('PENDING', 'EXPIRED')) OR "
             "(pairing_type = 'NEW_SCREEN' AND "
-            "((paired_at IS NULL AND screen_id IS NULL) OR "
-            "(paired_at IS NOT NULL AND screen_id IS NOT NULL))) OR "
-            "(pairing_type = 'RECONNECT_EXISTING' AND screen_id IS NOT NULL)",
+            "((paired_at IS NULL AND screen_id IS NULL AND status IN ('PENDING', 'EXPIRED')) OR "
+            "(paired_at IS NOT NULL AND screen_id IS NOT NULL AND status = 'PAIRED'))) OR "
+            "(pairing_type = 'RECONNECT_EXISTING' AND "
+            "((paired_at IS NULL AND status IN ('PENDING', 'EXPIRED')) OR "
+            "(paired_at IS NOT NULL AND screen_id IS NOT NULL AND status = 'PAIRED')))",
             name="ck_pairing_sessions_screen_reference",
+        ),
+        CheckConstraint(
+            "status IN ('PENDING', 'PAIRED', 'EXPIRED')",
+            name="ck_pairing_sessions_status",
         ),
         Index("ix_pairing_sessions_valid", "token_hash", "expires_at", "paired_at"),
     )
@@ -37,7 +45,10 @@ class ScreenPairingSessionModel(Base):
     screen_id: Mapped[UUID | None] = mapped_column(
         UUIDColumn, ForeignKey("screens.id", ondelete="CASCADE"), nullable=True
     )
-    pairing_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    pairing_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="PENDING", server_default="PENDING"
+    )
     token_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(Timestamp, nullable=False)
     paired_at: Mapped[datetime | None] = mapped_column(Timestamp)

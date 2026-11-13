@@ -31,7 +31,7 @@ from domain.entities.entities import (
     ScreenSyncState,
     User,
 )
-from domain.value_object.enums import MediaType
+from domain.value_object import MediaType, PairingType
 
 
 @pytest.mark.integration
@@ -59,14 +59,20 @@ async def test_all_domain_repositories_round_trip_entities(
     await SqlAlchemyMediaAssetRepository(integration_session).save(media)
     await SqlAlchemyPlaylistRepository(integration_session).save(playlist)
 
-    pairing = ScreenPairingSession.create(screen.id, "pairing-hash", timedelta(minutes=5))
+    pairing = ScreenPairingSession.create(
+        "pairing-hash",
+        timedelta(minutes=5),
+        pairing_type=PairingType.RECONNECT_EXISTING,
+        screen_id=screen.id,
+    )
     credential = ScreenCredential(screen_id=screen.id, credential_hash="credential-hash")
     item = PlaylistItem(playlist_id=playlist.id, media_asset_id=media.id, position=1)
     assignment = ScreenPlaylistAssignment(screen_id=screen.id, playlist_id=playlist.id)
     sync_state = ScreenSyncState(screen_id=screen.id)
     audit = AuditLog(action="SCREEN_REGISTERED", admin_id=admin.id, screen_id=screen.id)
 
-    await SqlAlchemyScreenPairingSessionRepository(integration_session).save(pairing)
+    pairing_repository = SqlAlchemyScreenPairingSessionRepository(integration_session)
+    await pairing_repository.save(pairing)
     await SqlAlchemyScreenCredentialRepository(integration_session).save(credential)
     await SqlAlchemyPlaylistItemRepository(integration_session).save(item)
     await SqlAlchemyScreenPlaylistAssignmentRepository(integration_session).save(assignment)
@@ -74,7 +80,8 @@ async def test_all_domain_repositories_round_trip_entities(
     await SqlAlchemyAuditLogRepository(integration_session).save(audit)
 
     assert await SqlAlchemyUserRepository(integration_session).get_by_id(admin.id)
-    assert await SqlAlchemyScreenPairingSessionRepository(integration_session).get_by_id(pairing.id)
+    assert await pairing_repository.get_by_id(pairing.id)
+    assert await pairing_repository.get_by_token_hash(pairing.token_hash)
     assert await SqlAlchemyScreenCredentialRepository(integration_session).get_by_id(credential.id)
     assert await SqlAlchemyMediaAssetRepository(integration_session).get_by_id(media.id)
     assert await SqlAlchemyPlaylistRepository(integration_session).get_by_id(playlist.id)

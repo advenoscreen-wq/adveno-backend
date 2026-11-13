@@ -17,6 +17,7 @@ from domain.entities.entities import (
     ScreenPairingSession,
 )
 from domain.exceptions import PersistenceError
+from domain.value_object import PairingSessionStatus
 from drivers.database.models.entities import (
     ScreenPairingSessionModel,
 )
@@ -31,6 +32,14 @@ class SqlAlchemyScreenPairingSessionRepository:
         model = await self.session.get(ScreenPairingSessionModel, session_id)
         return to_pairing_session(model) if model else None
 
+    async def get_by_token_hash(self, token_hash: str) -> ScreenPairingSession | None:
+        model = await self.session.scalar(
+            select(ScreenPairingSessionModel).where(
+                ScreenPairingSessionModel.token_hash == token_hash
+            )
+        )
+        return to_pairing_session(model) if model else None
+
     async def get_valid_session(
         self, token_hash: str, *, at: datetime | None = None
     ) -> ScreenPairingSession | None:
@@ -38,6 +47,7 @@ class SqlAlchemyScreenPairingSessionRepository:
         model = await self.session.scalar(
             select(ScreenPairingSessionModel).where(
                 ScreenPairingSessionModel.token_hash == token_hash,
+                ScreenPairingSessionModel.status == PairingSessionStatus.PENDING.value,
                 ScreenPairingSessionModel.paired_at.is_(None),
                 ScreenPairingSessionModel.expires_at > check_at,
             )

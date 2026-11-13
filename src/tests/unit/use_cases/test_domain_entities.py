@@ -15,7 +15,7 @@ from domain.entities.entities import (
     ScreenSyncState,
 )
 from domain.exceptions import DomainError, InvalidStateTransition
-from domain.value_object import UserRole
+from domain.value_object import PairingType, UserRole
 from domain.value_object.enums import MediaType, SyncStatus
 
 USER_ID = uuid4()
@@ -42,8 +42,10 @@ def test_screen_deactivation_blocks_heartbeat() -> None:
 
 
 def test_pairing_session_is_single_use() -> None:
-    session = ScreenPairingSession.create(uuid4(), "hashed-token", timedelta(minutes=5))
-    session.mark_as_paired()
+    session = ScreenPairingSession.create(
+        "hashed-token", timedelta(minutes=5), pairing_type=PairingType.NEW_SCREEN
+    )
+    session.mark_as_paired(screen_id=uuid4())
 
     assert not session.is_valid()
     with pytest.raises(InvalidStateTransition):

@@ -15,6 +15,7 @@ from domain.entities.entities import (
 from domain.value_object import (
     MediaStatus,
     MediaType,
+    PairingSessionStatus,
     PairingType,
     ScreenStatus,
     SyncStatus,
@@ -64,7 +65,8 @@ def to_pairing_session(model: ScreenPairingSessionModel) -> ScreenPairingSession
     return ScreenPairingSession(
         id=model.id,
         screen_id=model.screen_id,
-        pairing_type=PairingType(model.pairing_type),
+        pairing_type=PairingType(model.pairing_type) if model.pairing_type else None,
+        status=PairingSessionStatus(model.status),
         token_hash=model.token_hash,
         expires_at=model.expires_at,
         paired_at=model.paired_at,
@@ -184,7 +186,8 @@ def apply_screen(entity: Screen, model: ScreenModel) -> None:
 def apply_pairing_session(entity: ScreenPairingSession, model: ScreenPairingSessionModel) -> None:
     model.id = entity.id
     model.screen_id = entity.screen_id
-    model.pairing_type = entity.pairing_type.value
+    model.pairing_type = entity.pairing_type.value if entity.pairing_type else None
+    model.status = entity.status.value
     model.token_hash = entity.token_hash
     model.expires_at = entity.expires_at
     model.paired_at = entity.paired_at

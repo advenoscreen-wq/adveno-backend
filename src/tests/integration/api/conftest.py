@@ -10,8 +10,8 @@ import pytest_asyncio
 from application.dtos.oauth import OAuthTokenResult, OAuthUserInfo
 from config.settings import Settings
 from domain import User
-from drivers.routers.auth.dependencies import get_user_repository
 from drivers.core.app import create_app
+from drivers.routers.auth.dependencies import get_user_repository
 from drivers.routers.dependencies import get_cache_service, get_oauth_provider
 
 
@@ -111,6 +111,7 @@ async def client(
 ) -> AsyncIterator[httpx.AsyncClient]:
     settings = Settings(
         environment="test",
+        debug=False,
         database_url="postgresql+asyncpg://unused",
         oauth_redirect_uri="http://localhost:8000/api/v1/auth/google/callback",
         frontend_after_login_url="http://localhost:3000/login",

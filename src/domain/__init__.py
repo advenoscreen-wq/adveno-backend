@@ -22,6 +22,7 @@ from domain.exceptions import (
 from domain.value_object import (
     MediaStatus,
     MediaType,
+    PairingSessionStatus,
     PairingType,
     ScreenStatus,
     SyncStatus,
@@ -39,6 +40,7 @@ __all__ = [
     "PersistenceConflictError",
     "PersistenceError",
     "PairingType",
+    "PairingSessionStatus",
     "Playlist",
     "PlaylistItem",
     "Screen",

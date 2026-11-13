@@ -10,6 +10,7 @@ from urllib.parse import urlencode
 import httpx
 
 from application.dtos.oauth import OAuthTokenResult, OAuthUserInfo
+from application.exceptions.authentication import InvalidAccessTokenError
 from application.exceptions.oauth import OAuthProviderError
 
 logger = logging.getLogger(__name__)
@@ -116,6 +117,14 @@ class SupabaseOAuthAdapter:
                 extra={**operation_context, "status_code": response.status_code},
             )
             return response
+        except httpx.HTTPStatusError as error:
+            logger.warning(
+                "Supabase OAuth request failed",
+                extra={**operation_context, "error_type": type(error).__name__},
+            )
+            if path == "/auth/v1/user" and error.response.status_code in (401, 403):
+                raise InvalidAccessTokenError() from error
+            raise OAuthProviderError("Supabase OAuth request failed") from error
         except (httpx.HTTPError, KeyError, TypeError, ValueError) as error:
             logger.warning(
                 "Supabase OAuth request failed",

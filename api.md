@@ -7,8 +7,9 @@
 - Timestamps: UTC ISO 8601
 - Authentication: protected endpoints will use backend-validated credentials
 - Errors: `{ "error": { "code": "...", "message": "...", "status_code": 400 } }`
-- Secrets, tokens, credentials, and internal exception details are never
-  returned in API responses.
+- Secrets, credentials, and internal exception details are never returned
+  in API responses. Pairing tokens are returned once by the pairing request
+  endpoint so the TV can complete pairing.
 
 Business endpoints will be documented here when approved and implemented.
 
@@ -52,6 +53,74 @@ access token and rotated refresh token.
   "refresh_token": "...",
   "token_type": "bearer",
   "expires_in": 3600
+}
+```
+
+## Screen pairing
+
+### `POST /api/v1/pairing/sessions`
+
+Creates a pending pairing session for a TV. The backend stores only a SHA-256
+hash of the generated token and returns the raw token once. No screen record is
+created by this request. The frontend must select a pairing type. For
+both pairing types, the new session initially has no `screen_id`. A reconnect
+target can be selected later.
+
+**Request:**
+
+```json
+{"pairing_type": "NEW_SCREEN"}
+```
+
+```json
+{"pairing_type": "RECONNECT_EXISTING"}
+```
+
+**Response `201`:**
+
+```json
+{
+  "session_id": "uuid",
+  "pairing_token": "one-time-token",
+  "expires_at": "2026-11-13T15:10:00Z"
+}
+```
+
+### `GET /api/v1/pairing/sessions/{session_id}`
+
+Returns the pairing status for the specified session. Send the pairing token
+received from the create endpoint in the `X-Pairing-Token` header.
+
+**Response `200`:**
+
+```json
+{"status": "PENDING"}
+```
+
+An unknown session ID or invalid token returns `404 PAIRING_SESSION_NOT_FOUND`.
+
+### `GET /api/v1/pairing/sessions/verify`
+
+Checks a scanned pairing session for an authenticated application user. Send a
+valid Supabase access token in the `Authorization: Bearer <access_token>`
+header and the scanned raw pairing token in the `X-Pairing-Token` header. The
+server hashes the token to find the session. The response includes the session
+status, expiry, selected pairing type, screen reference, and whether a screen
+record currently exists. Expired sessions return `200` with `status: "EXPIRED"`; an unknown session returns
+`404 PAIRING_SESSION_NOT_FOUND`. Missing or invalid authentication, or an
+inactive/missing application user, returns `401 AUTHENTICATION_REQUIRED`.
+
+**Response `200`:**
+
+```json
+{
+  "session_id": "uuid",
+  "status": "PENDING",
+  "pairing_type": null,
+  "screen_id": null,
+  "screen_exists": false,
+  "expires_at": "2026-11-13T15:10:00Z",
+  "created_at": "2026-11-13T15:00:00Z"
 }
 ```
 

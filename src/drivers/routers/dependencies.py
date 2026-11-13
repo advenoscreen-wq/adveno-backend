@@ -2,14 +2,22 @@
 
 from functools import lru_cache
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Depends, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from adapters.repositories.user_repository import SqlAlchemyUserRepository
 from adapters.services.oauth_service.supabase_oauth import SupabaseOAuthAdapter
 from adapters.services.redis_cache_service import RedisCacheService
+from application.exceptions.authentication import (
+    AuthenticationRequiredError,
+    InvalidAccessTokenError,
+)
 from config.settings import Settings, get_settings
-from drivers.database.database import check_database
+from domain import User
+from drivers.database.database import check_database, session_dependency
 
 
 def get_session_factory(request: Request) -> async_sessionmaker[AsyncSession]:
@@ -58,7 +66,46 @@ async def get_database_ready(
     return await check_database(session_factory)
 
 
+def get_user_repository(
+    session: Annotated[AsyncSession, Depends(session_dependency)],
+) -> SqlAlchemyUserRepository:
+    """Build the request-scoped user repository."""
+    return SqlAlchemyUserRepository(session)
+
+
+async def get_current_user(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(HTTPBearer(auto_error=False)),
+    ],
+    provider: Annotated[SupabaseOAuthAdapter, Depends(get_oauth_provider)],
+    user_repository: Annotated[
+        SqlAlchemyUserRepository,
+        Depends(get_user_repository),
+    ],
+) -> User:
+    """Validate the bearer token and return its active application user."""
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise AuthenticationRequiredError()
+
+    try:
+        identity = await provider.get_user_info(credentials.credentials)
+    except InvalidAccessTokenError as error:
+        raise AuthenticationRequiredError() from error
+
+    try:
+        user_id = UUID(identity.provider_user_id)
+    except (TypeError, ValueError) as error:
+        raise AuthenticationRequiredError() from error
+
+    user = await user_repository.get_by_id(user_id)
+    if user is None or not user.is_active:
+        raise AuthenticationRequiredError()
+    return user
+
+
 SettingsDependency = Annotated[Settings, Depends(get_settings)]
 CacheService = Annotated[RedisCacheService, Depends(get_cache_service)]
 OAuthProvider = Annotated[SupabaseOAuthAdapter, Depends(get_oauth_provider)]
 DatabaseReady = Annotated[bool, Depends(get_database_ready)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
