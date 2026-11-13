@@ -32,3 +32,4 @@ class OAuthLoginAttempt:
     state: str
     redirect_uri: str
     created_at: float
+    code_verifier: str

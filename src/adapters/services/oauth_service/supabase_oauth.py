@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import replace
 from typing import Any
 from urllib.parse import urlencode
@@ -10,6 +11,8 @@ import httpx
 
 from application.dtos.oauth import OAuthTokenResult, OAuthUserInfo
 from application.exceptions.oauth import OAuthProviderError
+
+logger = logging.getLogger(__name__)
 
 
 class SupabaseOAuthAdapter:
@@ -30,22 +33,28 @@ class SupabaseOAuthAdapter:
         self,
         *,
         redirect_uri: str,
-        state: str,
+        code_challenge: str | None = None,
         scopes: list[str] | None = None,
     ) -> str:
         params = {
             "provider": self.provider,
             "redirect_to": redirect_uri,
-            "state": state,
         }
+        if code_challenge:
+            params["code_challenge"] = code_challenge
+            params["code_challenge_method"] = "s256"
         if scopes:
             params["scopes"] = " ".join(scopes)
+        logger.debug(
+            "OAuth authorization URL created",
+            extra={"provider": self.provider},
+        )
         return f"{self.base_url}/auth/v1/authorize?{urlencode(params)}"
 
-    async def exchange_code(self, code: str, *, redirect_uri: str) -> OAuthTokenResult:
+    async def exchange_code(self, code: str, *, code_verifier: str) -> OAuthTokenResult:
         return await self._token_request(
-            grant_type="authorization_code",
-            payload={"code": code, "redirect_uri": redirect_uri},
+            grant_type="pkce",
+            payload={"auth_code": code, "code_verifier": code_verifier},
         )
 
     async def refresh_access_token(self, refresh_token: str) -> OAuthTokenResult:
@@ -75,9 +84,7 @@ class SupabaseOAuthAdapter:
             avatar_url=user_metadata.get("avatar_url"),
         )
 
-    async def _token_request(
-        self, *, grant_type: str, payload: dict[str, str]
-    ) -> OAuthTokenResult:
+    async def _token_request(self, *, grant_type: str, payload: dict[str, str]) -> OAuthTokenResult:
         response = await self._request(
             "POST",
             f"/auth/v1/token?grant_type={grant_type}",
@@ -96,12 +103,22 @@ class SupabaseOAuthAdapter:
         headers = dict(kwargs.pop("headers", {}) or {})
         headers["apikey"] = self.anon_key
         headers["Content-Type"] = "application/json"
+        operation_context = {"method": method, "endpoint": path.split("?", 1)[0]}
+        logger.debug("Supabase OAuth request started", extra=operation_context)
         try:
             async with httpx.AsyncClient(
                 base_url=self.base_url, timeout=self.timeout_seconds
             ) as client:
                 response = await client.request(method, path, headers=headers, **kwargs)
             response.raise_for_status()
+            logger.debug(
+                "Supabase OAuth request completed",
+                extra={**operation_context, "status_code": response.status_code},
+            )
             return response
         except (httpx.HTTPError, KeyError, TypeError, ValueError) as error:
+            logger.warning(
+                "Supabase OAuth request failed",
+                extra={**operation_context, "error_type": type(error).__name__},
+            )
             raise OAuthProviderError("Supabase OAuth request failed") from error

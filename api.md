@@ -17,20 +17,43 @@ Business endpoints will be documented here when approved and implemented.
 ### `GET /api/v1/auth/google/request`
 
 Creates a single-use OAuth state in the cache and redirects the browser to
-the configured Google OAuth authorization URL.
+the configured Google OAuth authorization URL using PKCE. The state and code
+verifier are held server-side, and the browser receives a matching short-lived
+HttpOnly state cookie.
 
-### `GET /api/v1/auth/oauth/login`
+### Starting OAuth login
 
 Starts the configured Supabase OAuth flow. The backend generates and stores a
 single-use CSRF state, then redirects the browser to the provider.
 
-### `GET /api/v1/auth/oauth/callback`
+### `GET /api/v1/auth/google/callback`
 
-Validates and consumes the OAuth state, exchanges the authorization code, and
-creates or loads the application user using the provider's verified identity.
-The backend sets an HttpOnly application-session cookie and redirects to the
-configured frontend URL. Provider access and refresh tokens are never returned
-to the browser or stored in the application session cookie.
+Validates and consumes the single-use OAuth state, exchanges the authorization
+code with its PKCE verifier, sets the Supabase refresh token in the configured
+HttpOnly cookie, and redirects to `FRONTEND_AFTER_LOGIN_URL`. Provider authorization errors return
+the standard JSON error envelope; disabled signups return `403 SIGNUP_DISABLED`.
+
+### `POST /api/v1/auth/refresh`
+
+Accepts a Supabase refresh token in the JSON request body and returns the new
+access token and rotated refresh token.
+
+**Request:**
+
+```json
+{"refresh_token": "..."}
+```
+
+**Response `200`:**
+
+```json
+{
+  "access_token": "...",
+  "refresh_token": "...",
+  "token_type": "bearer",
+  "expires_in": 3600
+}
+```
 
 ## Health endpoints
 

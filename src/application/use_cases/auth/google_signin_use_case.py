@@ -1,5 +1,7 @@
 """Use case for requesting Google OAuth sign-in."""
 
+import base64
+import hashlib
 import json
 import secrets
 import time
@@ -26,7 +28,13 @@ class GoogleSigninUseCase:
 
     async def __call__(self, command: GoogleSigninCommand) -> GoogleSigninResult:
         state = secrets.token_urlsafe(32)
-        attempt = OAuthLoginAttempt(state, command.redirect_uri, time.time())
+        code_verifier = secrets.token_urlsafe(64)
+        code_challenge = (
+            base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode("ascii")).digest())
+            .rstrip(b"=")
+            .decode("ascii")
+        )
+        attempt = OAuthLoginAttempt(state, command.redirect_uri, time.time(), code_verifier)
         await self._cache_service.set(
             f"oauth:state:{state}",
             json.dumps(asdict(attempt)),
@@ -34,6 +42,6 @@ class GoogleSigninUseCase:
         )
         authorization_url = await self._provider.get_authorization_url(
             redirect_uri=command.redirect_uri,
-            state=state,
+            code_challenge=code_challenge,
         )
-        return GoogleSigninResult(authorization_url=authorization_url)
+        return GoogleSigninResult(authorization_url=authorization_url, state=state)

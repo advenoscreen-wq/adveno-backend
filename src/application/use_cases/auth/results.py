@@ -8,3 +8,4 @@ class GoogleSigninResult:
     """Generated provider authorization URL."""
 
     authorization_url: str
+    state: str

@@ -10,13 +10,11 @@ class OAuthProvider(Protocol):
         self,
         *,
         redirect_uri: str,
-        state: str,
+        code_challenge: str | None = None,
         scopes: list[str] | None = None,
     ) -> str: ...
 
-    async def exchange_code(
-        self, code: str, *, redirect_uri: str
-    ) -> OAuthTokenResult: ...
+    async def exchange_code(self, code: str, *, code_verifier: str) -> OAuthTokenResult: ...
 
     async def refresh_access_token(self, refresh_token: str) -> OAuthTokenResult: ...
 

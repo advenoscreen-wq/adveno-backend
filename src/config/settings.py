@@ -35,12 +35,13 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_anon_key: SecretStr = SecretStr("")
     oauth_provider: str = "google"
-    oauth_redirect_uri: str = "http://localhost:8000/api/v1/auth/oauth/callback"
+    oauth_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
     oauth_state_ttl_seconds: int = Field(default=600, ge=60)
+    oauth_state_cookie_name: str = "adveno_oauth_state"
     session_ttl_seconds: int = Field(default=3600, ge=60)
     session_cookie_name: str = "adveno_session"
     session_cookie_secure: bool = False
-    frontend_after_login_url: str = "http://localhost:3000"
+    frontend_after_login_url: str = "http://localhost:3000/login"
     log_level: str = "INFO"
 
     @field_validator("environment")

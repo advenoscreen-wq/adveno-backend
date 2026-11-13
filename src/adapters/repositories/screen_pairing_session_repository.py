@@ -8,7 +8,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from adapters.repositories.common import flush_session
+from adapters.repositories.common import flush_session, log_repository_operations
 from adapters.repositories.mappers import (
     apply_pairing_session,
     to_pairing_session,
@@ -22,6 +22,7 @@ from drivers.database.models.entities import (
 )
 
 
+@log_repository_operations
 class SqlAlchemyScreenPairingSessionRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session

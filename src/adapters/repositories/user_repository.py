@@ -4,12 +4,13 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from adapters.repositories.common import flush_session
+from adapters.repositories.common import flush_session, log_repository_operations
 from domain import User, UserRole
 from domain.exceptions import PersistenceError
 from drivers.database.models.entities import UserModel
 
 
+@log_repository_operations
 class SqlAlchemyUserRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
