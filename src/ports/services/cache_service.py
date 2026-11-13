@@ -1,0 +1,13 @@
+"""Application cache service port."""
+
+from typing import Protocol
+
+
+class CacheService(Protocol):
+    async def set(self, key: str, value: str, *, ttl_seconds: int) -> None: ...
+
+    async def get(self, key: str) -> str | None: ...
+
+    async def delete(self, key: str) -> None: ...
+
+    async def pop(self, key: str) -> str | None: ...

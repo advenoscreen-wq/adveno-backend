@@ -17,6 +17,20 @@ services:
     networks:
       - adveno
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - adveno
+
   api:
     build:
       context: .
@@ -25,6 +39,7 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       DEBUG: ${DEBUG:-true}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-adveno}:${POSTGRES_PASSWORD:-adveno_dev_password}@db:5432/${POSTGRES_DB:-adveno}
+      REDIS_URL: redis://redis:6379/0
       JWT_SECRET: ${JWT_SECRET:-development-only-change-me}
       JWT_ISSUER: ${JWT_ISSUER:-adveno}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-adveno-api}
@@ -34,12 +49,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     command: ["sh", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"]
     networks:
       - adveno
 
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   adveno:

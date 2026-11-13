@@ -4,6 +4,8 @@ from collections.abc import Callable
 
 from fastapi import FastAPI
 
+from adapters.services.oauth_service.supabase_oauth import SupabaseOAuthAdapter
+from adapters.services.redis_cache_service import RedisCacheService
 from config.logging import configure_logging
 from config.settings import Settings, get_settings
 from drivers.core.exception_handlers import register_exception_handlers
@@ -12,6 +14,7 @@ from drivers.database.database import (
     create_session_factory,
 )
 from drivers.database.transaction import DatabaseTransactionMiddleware
+from drivers.routers.auth import router as auth_router
 from drivers.routers.health import router as health_router
 from drivers.routers.router import router as v1_router
 
@@ -27,6 +30,11 @@ def create_app(
     register_exception_handlers(app)
     session_factory = create_session_factory(resolved_settings)
     app.add_middleware(DatabaseTransactionMiddleware, session_factory=session_factory)
+    provider = SupabaseOAuthAdapter(
+        supabase_url=resolved_settings.supabase_url,
+        supabase_anon_key=resolved_settings.supabase_anon_key.get_secret_value(),
+        provider=resolved_settings.oauth_provider,
+    )
 
     async def check_ready() -> bool:
         if database_check is not None:
@@ -36,6 +44,9 @@ def create_app(
 
     app.state.settings = resolved_settings
     app.state.check_database = check_ready
+    app.state.cache_service = RedisCacheService(resolved_settings.redis_url)
+    app.state.oauth_provider = provider
     v1_router.include_router(health_router)
+    v1_router.include_router(auth_router)
     app.include_router(v1_router)
     return app

@@ -7,14 +7,10 @@ import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from testcontainers.community.postgres import PostgresContainer
+from testcontainers.community.redis import RedisContainer
 
+from adapters.services.redis_cache_service import RedisCacheService
 from drivers.database.models.entities import Base
-
-
-@pytest.fixture
-def integration_database_url() -> str:
-    """Return the configured integration database URL."""
-    return "postgresql+asyncpg://adveno:adveno_dev_password@localhost:5432/adveno"
 
 
 @pytest.fixture(scope="session")
@@ -45,3 +41,25 @@ async def integration_session(
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.drop_all)
     await engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def redis_container() -> Iterator[RedisContainer]:
+    """Start an isolated Redis container for cache integration tests."""
+    with RedisContainer("redis:7-alpine") as container:
+        yield container
+
+
+@pytest_asyncio.fixture
+async def redis_service(redis_container: RedisContainer) -> AsyncIterator[RedisCacheService]:
+    """Provide a clean Redis service and remove its data after each test."""
+    redis_url = (
+        f"redis://{redis_container.get_container_host_ip()}:"
+        f"{redis_container.get_exposed_port(6379)}"
+    )
+    service = RedisCacheService(redis_url)
+    try:
+        yield service
+    finally:
+        await service.clear()
+        await service.close()
