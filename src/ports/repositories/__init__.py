@@ -12,9 +12,11 @@ from ports.repositories.screen_playlist_assignment_repository import (
 )
 from ports.repositories.screen_repository import ScreenRepository
 from ports.repositories.screen_sync_state_repository import ScreenSyncStateRepository
+from ports.repositories.user_repository import UserRepository
 
 __all__ = [
     "AdminProfileRepository",
+    "UserRepository",
     "ScreenRepository",
     "ScreenPairingSessionRepository",
     "ScreenCredentialRepository",

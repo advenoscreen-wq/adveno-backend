@@ -4,10 +4,10 @@ from datetime import timedelta
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.repositories.domain_repositories import (
-    SqlAlchemyAdminProfileRepository,
     SqlAlchemyAuditLogRepository,
     SqlAlchemyMediaAssetRepository,
     SqlAlchemyPlaylistItemRepository,
@@ -17,9 +17,9 @@ from adapters.repositories.domain_repositories import (
     SqlAlchemyScreenPlaylistAssignmentRepository,
     SqlAlchemyScreenRepository,
     SqlAlchemyScreenSyncStateRepository,
+    SqlAlchemyUserRepository,
 )
 from domain.entities.entities import (
-    AdminProfile,
     AuditLog,
     MediaAsset,
     Playlist,
@@ -29,6 +29,7 @@ from domain.entities.entities import (
     ScreenPairingSession,
     ScreenPlaylistAssignment,
     ScreenSyncState,
+    User,
 )
 from domain.value_object.enums import MediaType
 
@@ -37,8 +38,8 @@ from domain.value_object.enums import MediaType
 async def test_all_domain_repositories_round_trip_entities(
     integration_session: AsyncSession,
 ) -> None:
-    admin = AdminProfile(id=uuid4())
-    screen = Screen(screen_code="SCR-1", name="Lobby")
+    admin = User(id=uuid4())
+    screen = Screen(user_id=admin.id, screen_code="SCR-1", name="Lobby")
     media = MediaAsset(
         name="welcome",
         media_type=MediaType.IMAGE,
@@ -46,10 +47,14 @@ async def test_all_domain_repositories_round_trip_entities(
         storage_path="media/welcome.png",
         file_size=10,
         checksum="checksum",
+        user_id=admin.id,
     )
-    playlist = Playlist(name="Lobby playlist")
+    playlist = Playlist(name="Lobby playlist", user_id=admin.id)
 
-    await SqlAlchemyAdminProfileRepository(integration_session).save(admin)
+    await integration_session.execute(
+        text("INSERT INTO auth.users (id) VALUES (:id)"), {"id": admin.id}
+    )
+    await SqlAlchemyUserRepository(integration_session).save(admin)
     await SqlAlchemyScreenRepository(integration_session).save(screen)
     await SqlAlchemyMediaAssetRepository(integration_session).save(media)
     await SqlAlchemyPlaylistRepository(integration_session).save(playlist)
@@ -68,7 +73,7 @@ async def test_all_domain_repositories_round_trip_entities(
     await SqlAlchemyScreenSyncStateRepository(integration_session).save(sync_state)
     await SqlAlchemyAuditLogRepository(integration_session).save(audit)
 
-    assert await SqlAlchemyAdminProfileRepository(integration_session).get_by_id(admin.id)
+    assert await SqlAlchemyUserRepository(integration_session).get_by_id(admin.id)
     assert await SqlAlchemyScreenPairingSessionRepository(integration_session).get_by_id(pairing.id)
     assert await SqlAlchemyScreenCredentialRepository(integration_session).get_by_id(credential.id)
     assert await SqlAlchemyMediaAssetRepository(integration_session).get_by_id(media.id)

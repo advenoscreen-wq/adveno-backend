@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from domain import User
 from domain.entities.entities import (
     MediaAsset,
     Playlist,
@@ -14,7 +15,10 @@ from domain.entities.entities import (
     ScreenSyncState,
 )
 from domain.exceptions import DomainError, InvalidStateTransition
+from domain.value_object import UserRole
 from domain.value_object.enums import MediaType, SyncStatus
+
+USER_ID = uuid4()
 
 
 def image_asset() -> MediaAsset:
@@ -25,11 +29,12 @@ def image_asset() -> MediaAsset:
         storage_path="media/welcome.png",
         file_size=10,
         checksum="checksum",
+        user_id=USER_ID,
     )
 
 
 def test_screen_deactivation_blocks_heartbeat() -> None:
-    screen = Screen(screen_code="SCR-1", name="Lobby")
+    screen = Screen(user_id=USER_ID, screen_code="SCR-1", name="Lobby")
     screen.deactivate()
 
     with pytest.raises(InvalidStateTransition):
@@ -46,7 +51,7 @@ def test_pairing_session_is_single_use() -> None:
 
 
 def test_playlist_reorders_items_and_increments_version() -> None:
-    playlist = Playlist(name="Lobby")
+    playlist = Playlist(name="Lobby", user_id=USER_ID)
     first = PlaylistItem(playlist.id, uuid4(), 1)
     second = PlaylistItem(playlist.id, uuid4(), 2)
     playlist.items = [first, second]
@@ -60,7 +65,7 @@ def test_playlist_reorders_items_and_increments_version() -> None:
 
 
 def test_playlist_rejects_deleted_media() -> None:
-    playlist = Playlist(name="Lobby")
+    playlist = Playlist(name="Lobby", user_id=USER_ID)
     asset = image_asset()
     asset.mark_as_deleted()
 
@@ -76,3 +81,17 @@ def test_sync_state_does_not_apply_non_desired_revision() -> None:
         state.mark_sync_succeeded(1)
 
     assert state.sync_status is SyncStatus.SYNCING
+
+
+def test_user_supports_admin_and_user_roles() -> None:
+    assert User(id=uuid4(), role=UserRole.ADMIN).role is UserRole.ADMIN
+    assert User(id=uuid4(), role=UserRole.USER).role is UserRole.USER
+
+
+def test_playlist_rejects_media_owned_by_another_user() -> None:
+    playlist = Playlist(name="Lobby", user_id=USER_ID)
+    asset = image_asset()
+    asset.user_id = uuid4()
+
+    with pytest.raises(DomainError):
+        playlist.add_item(PlaylistItem(playlist.id, asset.id, 1), asset)

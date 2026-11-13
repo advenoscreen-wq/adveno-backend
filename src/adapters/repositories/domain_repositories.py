@@ -11,10 +11,12 @@ from adapters.repositories import (
     SqlAlchemyScreenPlaylistAssignmentRepository,
     SqlAlchemyScreenRepository,
     SqlAlchemyScreenSyncStateRepository,
+    SqlAlchemyUserRepository,
 )
 
 __all__ = [
     "SqlAlchemyAdminProfileRepository",
+    "SqlAlchemyUserRepository",
     "SqlAlchemyAuditLogRepository",
     "SqlAlchemyMediaAssetRepository",
     "SqlAlchemyPlaylistItemRepository",

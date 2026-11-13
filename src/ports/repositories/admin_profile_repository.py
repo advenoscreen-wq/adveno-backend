@@ -1,16 +1,7 @@
-from __future__ import annotations
+"""Backward-compatible alias for the unified user repository."""
 
-from typing import Protocol
-from uuid import UUID
+from ports.repositories.user_repository import UserRepository
 
-from domain import (
-    AdminProfile,
-)
+AdminProfileRepository = UserRepository
 
-
-class AdminProfileRepository(Protocol):
-    async def get_by_id(self, profile_id: UUID) -> AdminProfile | None: ...
-
-    async def save(self, profile: AdminProfile) -> AdminProfile: ...
-
-    async def update(self, profile: AdminProfile) -> AdminProfile: ...
+__all__ = ["AdminProfileRepository"]

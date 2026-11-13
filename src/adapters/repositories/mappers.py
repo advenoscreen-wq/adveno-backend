@@ -1,7 +1,6 @@
 """Explicit mappings between SQLAlchemy and domain entities."""
 
 from domain.entities.entities import (
-    AdminProfile,
     AuditLog,
     MediaAsset,
     Playlist,
@@ -11,10 +10,10 @@ from domain.entities.entities import (
     ScreenPairingSession,
     ScreenPlaylistAssignment,
     ScreenSyncState,
+    User,
 )
-from domain.value_object.enums import MediaStatus, MediaType, ScreenStatus, SyncStatus
+from domain.value_object import MediaStatus, MediaType, ScreenStatus, SyncStatus, UserRole
 from drivers.database.models.entities import (
-    AdminProfileModel,
     AuditLogModel,
     MediaAssetModel,
     PlaylistItemModel,
@@ -24,12 +23,14 @@ from drivers.database.models.entities import (
     ScreenPairingSessionModel,
     ScreenPlaylistAssignmentModel,
     ScreenSyncStateModel,
+    UserModel,
 )
 
 
-def to_admin_profile(model: AdminProfileModel) -> AdminProfile:
-    return AdminProfile(
+def to_user(model: UserModel) -> User:
+    return User(
         id=model.id,
+        role=UserRole(model.role),
         is_active=model.is_active,
         created_at=model.created_at,
         updated_at=model.updated_at,
@@ -39,6 +40,7 @@ def to_admin_profile(model: AdminProfileModel) -> AdminProfile:
 def to_screen(model: ScreenModel) -> Screen:
     return Screen(
         id=model.id,
+        user_id=model.user_id,
         screen_code=model.screen_code,
         name=model.name,
         device_model=model.device_model,
@@ -76,6 +78,7 @@ def to_credential(model: ScreenCredentialModel) -> ScreenCredential:
 def to_media_asset(model: MediaAssetModel) -> MediaAsset:
     return MediaAsset(
         id=model.id,
+        user_id=model.user_id,
         name=model.name,
         media_type=MediaType(model.media_type),
         mime_type=model.mime_type,
@@ -105,6 +108,7 @@ def to_playlist_item(model: PlaylistItemModel) -> PlaylistItem:
 def to_playlist(model: PlaylistModel, items: list[PlaylistItem] | None = None) -> Playlist:
     return Playlist(
         id=model.id,
+        user_id=model.user_id,
         name=model.name,
         description=model.description,
         version=model.version,
@@ -149,14 +153,16 @@ def to_audit_log(model: AuditLogModel) -> AuditLog:
     )
 
 
-def apply_admin_profile(entity: AdminProfile, model: AdminProfileModel) -> None:
+def apply_user(entity: User, model: UserModel) -> None:
     model.id = entity.id
+    model.role = entity.role.value
     model.is_active = entity.is_active
     model.updated_at = entity.updated_at
 
 
 def apply_screen(entity: Screen, model: ScreenModel) -> None:
     model.id = entity.id
+    model.user_id = entity.user_id
     model.screen_code = entity.screen_code
     model.name = entity.name
     model.device_model = entity.device_model
@@ -185,6 +191,7 @@ def apply_credential(entity: ScreenCredential, model: ScreenCredentialModel) -> 
 
 def apply_media_asset(entity: MediaAsset, model: MediaAssetModel) -> None:
     model.id = entity.id
+    model.user_id = entity.user_id
     model.name = entity.name
     model.media_type = entity.media_type.value
     model.mime_type = entity.mime_type
@@ -200,6 +207,7 @@ def apply_media_asset(entity: MediaAsset, model: MediaAssetModel) -> None:
 
 def apply_playlist(entity: Playlist, model: PlaylistModel) -> None:
     model.id = entity.id
+    model.user_id = entity.user_id
     model.name = entity.name
     model.description = entity.description
     model.version = entity.version

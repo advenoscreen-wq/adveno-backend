@@ -9,9 +9,17 @@ from domain import (
 
 
 class PlaylistRepository(Protocol):
-    async def get_by_id(self, playlist_id: UUID) -> Playlist | None: ...
+    async def get_by_id(
+        self, playlist_id: UUID, *, user_id: UUID | None = None
+    ) -> Playlist | None: ...
 
-    async def list_all(self, *, offset: int = 0, limit: int = 100) -> list[Playlist]: ...
+    async def list_all(
+        self, *, user_id: UUID | None = None, offset: int = 0, limit: int = 100
+    ) -> list[Playlist]: ...
+
+    async def list_by_user_id(
+        self, user_id: UUID, *, offset: int = 0, limit: int = 100
+    ) -> list[Playlist]: ...
 
     async def save(self, playlist: Playlist) -> Playlist: ...
 

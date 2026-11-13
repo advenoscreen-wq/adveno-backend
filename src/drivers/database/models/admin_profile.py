@@ -1,5 +1,7 @@
 """Persistence model for admin_profile."""
 
-from drivers.database.models.entities import AdminProfileModel
+from drivers.database.models.entities import UserModel
 
-__all__ = ["AdminProfileModel"]
+AdminProfileModel = UserModel
+
+__all__ = ["AdminProfileModel", "UserModel"]

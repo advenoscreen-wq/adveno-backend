@@ -14,9 +14,11 @@ from adapters.repositories.screen_playlist_assignment_repository import (
 )
 from adapters.repositories.screen_repository import SqlAlchemyScreenRepository
 from adapters.repositories.screen_sync_state_repository import SqlAlchemyScreenSyncStateRepository
+from adapters.repositories.user_repository import SqlAlchemyUserRepository
 
 __all__ = [
     "SqlAlchemyAdminProfileRepository",
+    "SqlAlchemyUserRepository",
     "SqlAlchemyScreenRepository",
     "SqlAlchemyScreenPairingSessionRepository",
     "SqlAlchemyScreenCredentialRepository",

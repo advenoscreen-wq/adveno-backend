@@ -15,6 +15,7 @@ class Playlist:
     """Ordered collection of active media assets."""
 
     name: str
+    user_id: UUID
     description: str | None = None
     version: int = 1
     id: UUID = field(default_factory=uuid4)
@@ -48,6 +49,8 @@ class Playlist:
     def add_item(self, item: PlaylistItem, media: MediaAsset) -> None:
         if item.playlist_id != self.id:
             raise DomainError("playlist item belongs to a different playlist")
+        if media.user_id != self.user_id:
+            raise DomainError("media asset belongs to a different user")
         media.validate_playlist_compatibility()
         if any(existing.position == item.position for existing in self.items):
             raise DomainError("playlist item position must be unique")

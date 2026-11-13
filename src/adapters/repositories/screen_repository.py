@@ -25,21 +25,37 @@ class SqlAlchemyScreenRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_by_id(self, screen_id: UUID) -> Screen | None:
-        model = await self.session.get(ScreenModel, screen_id)
+    async def get_by_id(self, screen_id: UUID, *, user_id: UUID | None = None) -> Screen | None:
+        statement = select(ScreenModel).where(ScreenModel.id == screen_id)
+        if user_id is not None:
+            statement = statement.where(ScreenModel.user_id == user_id)
+        model = await self.session.scalar(statement)
         return to_screen(model) if model else None
 
-    async def get_by_screen_code(self, screen_code: str) -> Screen | None:
-        model = await self.session.scalar(
-            select(ScreenModel).where(ScreenModel.screen_code == screen_code)
-        )
+    async def get_by_screen_code(
+        self, screen_code: str, *, user_id: UUID | None = None
+    ) -> Screen | None:
+        statement = select(ScreenModel).where(ScreenModel.screen_code == screen_code)
+        if user_id is not None:
+            statement = statement.where(ScreenModel.user_id == user_id)
+        model = await self.session.scalar(statement)
         return to_screen(model) if model else None
 
-    async def list_all(self, *, offset: int = 0, limit: int = 100) -> list[Screen]:
+    async def list_all(
+        self, *, user_id: UUID | None = None, offset: int = 0, limit: int = 100
+    ) -> list[Screen]:
+        statement = select(ScreenModel)
+        if user_id is not None:
+            statement = statement.where(ScreenModel.user_id == user_id)
         result = await self.session.scalars(
-            select(ScreenModel).order_by(ScreenModel.created_at).offset(offset).limit(limit)
+            statement.order_by(ScreenModel.created_at).offset(offset).limit(limit)
         )
         return [to_screen(model) for model in result]
+
+    async def list_by_user_id(
+        self, user_id: UUID, *, offset: int = 0, limit: int = 100
+    ) -> list[Screen]:
+        return await self.list_all(user_id=user_id, offset=offset, limit=limit)
 
     async def save(self, screen: Screen) -> Screen:
         model = ScreenModel()
@@ -49,7 +65,11 @@ class SqlAlchemyScreenRepository:
         return to_screen(model)
 
     async def update(self, screen: Screen) -> Screen:
-        model = await self.session.get(ScreenModel, screen.id)
+        model = await self.session.scalar(
+            select(ScreenModel).where(
+                ScreenModel.id == screen.id, ScreenModel.user_id == screen.user_id
+            )
+        )
         if model is None:
             raise PersistenceError("screen was not found")
         apply_screen(screen, model)

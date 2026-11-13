@@ -19,13 +19,27 @@ from domain.entities.entities import (
 )
 from domain.exceptions import PersistenceError
 from drivers.database.models.entities import (
+    MediaAssetModel,
     PlaylistItemModel,
+    PlaylistModel,
 )
 
 
 class SqlAlchemyPlaylistItemRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def _validate_ownership(self, item: PlaylistItem) -> None:
+        owners = await self.session.execute(
+            select(PlaylistModel.user_id, MediaAssetModel.user_id)
+            .join(MediaAssetModel, MediaAssetModel.id == item.media_asset_id)
+            .where(PlaylistModel.id == item.playlist_id)
+        )
+        row = owners.one_or_none()
+        if row is None:
+            raise PersistenceError("playlist or media asset was not found")
+        if row[0] != row[1]:
+            raise PersistenceError("playlist and media asset belong to different users")
 
     async def list_by_playlist_id(
         self, playlist_id: UUID, *, offset: int = 0, limit: int = 100
@@ -40,6 +54,7 @@ class SqlAlchemyPlaylistItemRepository:
         return [to_playlist_item(model) for model in result]
 
     async def save(self, item: PlaylistItem) -> PlaylistItem:
+        await self._validate_ownership(item)
         model = PlaylistItemModel()
         apply_playlist_item(item, model)
         self.session.add(model)
@@ -47,6 +62,7 @@ class SqlAlchemyPlaylistItemRepository:
         return to_playlist_item(model)
 
     async def update(self, item: PlaylistItem) -> PlaylistItem:
+        await self._validate_ownership(item)
         model = await self.session.get(PlaylistItemModel, item.id)
         if model is None:
             raise PersistenceError("playlist item was not found")

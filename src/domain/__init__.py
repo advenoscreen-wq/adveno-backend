@@ -11,6 +11,7 @@ from domain.entities import (
     ScreenPairingSession,
     ScreenPlaylistAssignment,
     ScreenSyncState,
+    User,
 )
 from domain.exceptions import (
     DomainError,
@@ -18,7 +19,7 @@ from domain.exceptions import (
     PersistenceConflictError,
     PersistenceError,
 )
-from domain.value_object import MediaStatus, MediaType, ScreenStatus, SyncStatus
+from domain.value_object import MediaStatus, MediaType, ScreenStatus, SyncStatus, UserRole
 
 __all__ = [
     "AdminProfile",
@@ -39,4 +40,6 @@ __all__ = [
     "ScreenStatus",
     "ScreenSyncState",
     "SyncStatus",
+    "User",
+    "UserRole",
 ]

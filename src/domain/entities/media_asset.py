@@ -19,6 +19,7 @@ class MediaAsset:
     storage_path: str
     file_size: int
     checksum: str
+    user_id: UUID
     id: UUID = field(default_factory=uuid4)
     width: int | None = None
     height: int | None = None

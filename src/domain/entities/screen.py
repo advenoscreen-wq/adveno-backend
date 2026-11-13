@@ -13,6 +13,7 @@ from domain.value_object import ScreenStatus
 class Screen:
     """Registered Adveno TV screen."""
 
+    user_id: UUID
     id: UUID = field(default_factory=uuid4)
     screen_code: str = ""
     name: str = ""

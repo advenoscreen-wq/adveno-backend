@@ -17,6 +17,8 @@ from domain.entities.entities import (
 )
 from domain.exceptions import PersistenceError
 from drivers.database.models.entities import (
+    PlaylistModel,
+    ScreenModel,
     ScreenPlaylistAssignmentModel,
 )
 
@@ -24,6 +26,18 @@ from drivers.database.models.entities import (
 class SqlAlchemyScreenPlaylistAssignmentRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def _validate_ownership(self, assignment: ScreenPlaylistAssignment) -> None:
+        owners = await self.session.execute(
+            select(ScreenModel.user_id, PlaylistModel.user_id)
+            .join(PlaylistModel, PlaylistModel.id == assignment.playlist_id)
+            .where(ScreenModel.id == assignment.screen_id)
+        )
+        row = owners.one_or_none()
+        if row is None:
+            raise PersistenceError("screen or playlist was not found")
+        if row[0] != row[1]:
+            raise PersistenceError("screen and playlist belong to different users")
 
     async def get_active_by_screen_id(self, screen_id: UUID) -> ScreenPlaylistAssignment | None:
         model = await self.session.scalar(
@@ -59,6 +73,7 @@ class SqlAlchemyScreenPlaylistAssignmentRepository:
         return [to_assignment(model) for model in result]
 
     async def save(self, assignment: ScreenPlaylistAssignment) -> ScreenPlaylistAssignment:
+        await self._validate_ownership(assignment)
         model = ScreenPlaylistAssignmentModel()
         apply_assignment(assignment, model)
         self.session.add(model)
@@ -66,6 +81,7 @@ class SqlAlchemyScreenPlaylistAssignmentRepository:
         return to_assignment(model)
 
     async def update(self, assignment: ScreenPlaylistAssignment) -> ScreenPlaylistAssignment:
+        await self._validate_ownership(assignment)
         model = await self.session.get(ScreenPlaylistAssignmentModel, assignment.id)
         if model is None:
             raise PersistenceError("screen playlist assignment was not found")

@@ -10,6 +10,7 @@ from domain.entities.screen_credential import ScreenCredential
 from domain.entities.screen_pairing_session import ScreenPairingSession
 from domain.entities.screen_playlist_assignment import ScreenPlaylistAssignment
 from domain.entities.screen_sync_state import ScreenSyncState
+from domain.entities.user import User
 
 __all__ = [
     "AdminProfile",
@@ -22,4 +23,5 @@ __all__ = [
     "ScreenPairingSession",
     "ScreenPlaylistAssignment",
     "ScreenSyncState",
+    "User",
 ]

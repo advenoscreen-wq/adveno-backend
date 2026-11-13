@@ -29,8 +29,11 @@ class SqlAlchemyPlaylistRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_by_id(self, playlist_id: UUID) -> Playlist | None:
-        model = await self.session.get(PlaylistModel, playlist_id)
+    async def get_by_id(self, playlist_id: UUID, *, user_id: UUID | None = None) -> Playlist | None:
+        statement = select(PlaylistModel).where(PlaylistModel.id == playlist_id)
+        if user_id is not None:
+            statement = statement.where(PlaylistModel.user_id == user_id)
+        model = await self.session.scalar(statement)
         if model is None:
             return None
         items = await self.session.scalars(
@@ -40,11 +43,21 @@ class SqlAlchemyPlaylistRepository:
         )
         return to_playlist(model, [to_playlist_item(item) for item in items])
 
-    async def list_all(self, *, offset: int = 0, limit: int = 100) -> list[Playlist]:
+    async def list_all(
+        self, *, user_id: UUID | None = None, offset: int = 0, limit: int = 100
+    ) -> list[Playlist]:
+        statement = select(PlaylistModel)
+        if user_id is not None:
+            statement = statement.where(PlaylistModel.user_id == user_id)
         result = await self.session.scalars(
-            select(PlaylistModel).order_by(PlaylistModel.created_at).offset(offset).limit(limit)
+            statement.order_by(PlaylistModel.created_at).offset(offset).limit(limit)
         )
         return [to_playlist(model) for model in result]
+
+    async def list_by_user_id(
+        self, user_id: UUID, *, offset: int = 0, limit: int = 100
+    ) -> list[Playlist]:
+        return await self.list_all(user_id=user_id, offset=offset, limit=limit)
 
     async def save(self, playlist: Playlist) -> Playlist:
         model = PlaylistModel()
@@ -54,7 +67,11 @@ class SqlAlchemyPlaylistRepository:
         return to_playlist(model)
 
     async def update(self, playlist: Playlist) -> Playlist:
-        model = await self.session.get(PlaylistModel, playlist.id)
+        model = await self.session.scalar(
+            select(PlaylistModel).where(
+                PlaylistModel.id == playlist.id, PlaylistModel.user_id == playlist.user_id
+            )
+        )
         if model is None:
             raise PersistenceError("playlist was not found")
         apply_playlist(playlist, model)

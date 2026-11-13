@@ -11,6 +11,7 @@ from domain.entities import (
     ScreenPairingSession,
     ScreenPlaylistAssignment,
     ScreenSyncState,
+    User,
 )
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "ScreenPairingSession",
     "ScreenPlaylistAssignment",
     "ScreenSyncState",
+    "User",
 ]
