@@ -5,19 +5,33 @@ from uuid import UUID
 from fastapi import APIRouter, Header, status
 
 from application.use_cases.pairing.commands import (
+    ApproveScreenPairingSessionCommand,
+    CheckPairingCompletionCommand,
+    CreatePairedScreenCommand,
     CreateScreenPairingSessionCommand,
     GetScreenPairingSessionStatusCommand,
+    IssuePairedScreenCredentialCommand,
     VerifyScreenPairingSessionCommand,
 )
 from drivers.routers.dependencies import CurrentUser
 from drivers.routers.pairing.dependencies import (
+    ApproveScreenPairingSession,
+    CheckPairingCompletion,
+    CreatePairedScreen,
     CreateScreenPairingSession,
     GetScreenPairingSessionStatus,
+    IssuePairedScreenCredential,
     VerifyScreenPairingSession,
 )
 from drivers.schemas.pairing import (
+    ApproveScreenPairingSessionRequest,
+    ApproveScreenPairingSessionResponse,
+    CreatePairedScreenRequest,
+    CreatePairedScreenResponse,
     CreateScreenPairingSessionRequest,
     CreateScreenPairingSessionResponse,
+    IssuePairedScreenCredentialResponse,
+    PairingCompletionResponse,
     ScreenPairingSessionStatusResponse,
     VerifyScreenPairingSessionResponse,
 )
@@ -61,6 +75,95 @@ async def verify_screen_pairing_session(
         screen_exists=result.screen_exists,
         expires_at=result.expires_at,
         created_at=result.created_at,
+    )
+
+
+@router.post("/sessions/approve", response_model=ApproveScreenPairingSessionResponse)
+async def approve_screen_pairing_session(
+    body: ApproveScreenPairingSessionRequest,
+    current_user: CurrentUser,
+    use_case: ApproveScreenPairingSession,
+    pairing_token: str = Header(alias="X-Pairing-Token"),
+) -> ApproveScreenPairingSessionResponse:
+    result = await use_case(
+        ApproveScreenPairingSessionCommand(
+            pairing_token=pairing_token,
+            user_id=current_user.id,
+            screen_id=body.screen_id,
+        )
+    )
+    return ApproveScreenPairingSessionResponse(
+        session_id=result.session_id,
+        pairing_type=result.pairing_type,
+        status=result.status,
+        screen_id=result.screen_id,
+        paired_at=result.paired_at,
+    )
+
+
+@router.post(
+    "/sessions/{session_id}/screen",
+    status_code=status.HTTP_201_CREATED,
+    response_model=CreatePairedScreenResponse,
+)
+async def create_paired_screen(
+    session_id: UUID,
+    body: CreatePairedScreenRequest,
+    current_user: CurrentUser,
+    use_case: CreatePairedScreen,
+    pairing_token: str = Header(alias="X-Pairing-Token"),
+) -> CreatePairedScreenResponse:
+    result = await use_case(
+        CreatePairedScreenCommand(
+            session_id=session_id,
+            pairing_token=pairing_token,
+            user_id=current_user.id,
+            name=body.name,
+            device_model=body.device_model,
+            app_version=body.app_version,
+        )
+    )
+    return CreatePairedScreenResponse(
+        screen_id=result.screen_id,
+        screen_code=result.screen_code,
+        name=result.name,
+        credential=result.credential,
+    )
+
+
+@router.post(
+    "/sessions/{session_id}/credential",
+    response_model=IssuePairedScreenCredentialResponse,
+)
+async def issue_paired_screen_credential(
+    session_id: UUID,
+    use_case: IssuePairedScreenCredential,
+    pairing_token: str = Header(alias="X-Pairing-Token"),
+) -> IssuePairedScreenCredentialResponse:
+    result = await use_case(
+        IssuePairedScreenCredentialCommand(
+            session_id=session_id,
+            pairing_token=pairing_token,
+        )
+    )
+    return IssuePairedScreenCredentialResponse(
+        screen_id=result.screen_id,
+        credential=result.credential,
+    )
+
+
+@router.get("/sessions/completion", response_model=PairingCompletionResponse)
+async def check_pairing_completion(
+    use_case: CheckPairingCompletion,
+    pairing_token: str = Header(alias="X-Pairing-Token"),
+) -> PairingCompletionResponse:
+    result = await use_case(CheckPairingCompletionCommand(pairing_token=pairing_token))
+    return PairingCompletionResponse(
+        session_id=result.session_id,
+        status=result.status,
+        screen_id=result.screen_id,
+        paired_at=result.paired_at,
+        completed=result.completed,
     )
 
 

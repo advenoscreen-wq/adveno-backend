@@ -10,9 +10,13 @@ from domain import (
 
 
 class ScreenPairingSessionRepository(Protocol):
-    async def get_by_id(self, session_id: UUID) -> ScreenPairingSession | None: ...
+    async def get_by_id(
+        self, session_id: UUID, *, for_update: bool = False
+    ) -> ScreenPairingSession | None: ...
 
-    async def get_by_token_hash(self, token_hash: str) -> ScreenPairingSession | None: ...
+    async def get_by_token_hash(
+        self, token_hash: str, *, for_update: bool = False
+    ) -> ScreenPairingSession | None: ...
 
     async def get_valid_session(
         self, token_hash: str, *, at: datetime | None = None

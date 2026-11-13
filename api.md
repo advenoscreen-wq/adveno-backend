@@ -124,6 +124,71 @@ inactive/missing application user, returns `401 AUTHENTICATION_REQUIRED`.
 }
 ```
 
+### `POST /api/v1/pairing/sessions/approve`
+
+Approves a pending session. Requires a valid Supabase access token in the
+`Authorization` header and the scanned QR token in `X-Pairing-Token`. For
+`NEW_SCREEN`, send an empty JSON object; approval sets `status` and `paired_at`
+without creating a screen. For `RECONNECT_EXISTING`, send the ID of an active
+screen owned by the authenticated user:
+
+```json
+{"screen_id": "uuid"}
+```
+
+The reconnect path associates the session with that existing screen and
+preserves its data. Expired sessions return `410 PAIRING_SESSION_EXPIRED`;
+already completed sessions return `409 PAIRING_SESSION_NOT_PENDING`.
+
+**Response `200`:**
+
+```json
+{
+  "session_id": "uuid",
+  "pairing_type": "NEW_SCREEN",
+  "status": "PAIRED",
+  "screen_id": null,
+  "paired_at": "2026-11-13T15:05:00Z"
+}
+```
+
+### `POST /api/v1/pairing/sessions/{session_id}/screen`
+
+Creates a screen for an approved `NEW_SCREEN` session. Requires an authenticated
+user and the session's raw token in `X-Pairing-Token`. The request is rejected
+unless the session is `PAIRED`; reconnect sessions and sessions that already
+have a screen cannot create another one. The backend assigns the screen ID and
+screen code, then stores the ID on the pairing session in the same transaction.
+
+```json
+{
+  "name": "Lobby TV",
+  "device_model": "Model X",
+  "app_version": "1.2.3"
+}
+```
+
+The device fields are optional. The response contains `screen_id`,
+`screen_code`, `name`, and a newly generated raw `credential`. The raw credential
+is returned once; PostgreSQL stores only its SHA-256 hash. The TV should retain
+the credential and use it for subsequent device authentication.
+
+### `POST /api/v1/pairing/sessions/{session_id}/credential`
+
+Issues a fresh credential for a paired session. Requires the session's raw
+pairing token in `X-Pairing-Token`. The current active credential is revoked and
+kept for history; its replacement is returned once, with only its SHA-256 hash
+stored in PostgreSQL. Calling this endpoint again rotates the credential again.
+
+**Response `200`:** `screen_id` and the new raw `credential`.
+
+### `GET /api/v1/pairing/sessions/completion`
+
+Checks completion using the raw pairing token in `X-Pairing-Token`. `completed`
+is true only when the session status is `PAIRED`, `screen_id` and `paired_at`
+are set, and the linked screen has an active credential. Pending or partially
+completed sessions return `completed: false`.
+
 ## Health endpoints
 
 ### `GET /api/v1/health`

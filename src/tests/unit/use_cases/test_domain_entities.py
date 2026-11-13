@@ -45,9 +45,10 @@ def test_pairing_session_is_single_use() -> None:
     session = ScreenPairingSession.create(
         "hashed-token", timedelta(minutes=5), pairing_type=PairingType.NEW_SCREEN
     )
-    session.mark_as_paired(screen_id=uuid4())
+    session.mark_as_paired()
 
     assert not session.is_valid()
+    assert session.screen_id is None
     with pytest.raises(InvalidStateTransition):
         session.mark_as_paired()
 

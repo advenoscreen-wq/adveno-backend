@@ -28,7 +28,7 @@ class ScreenPairingSessionModel(Base):
             "AND status IN ('PENDING', 'EXPIRED')) OR "
             "(pairing_type = 'NEW_SCREEN' AND "
             "((paired_at IS NULL AND screen_id IS NULL AND status IN ('PENDING', 'EXPIRED')) OR "
-            "(paired_at IS NOT NULL AND screen_id IS NOT NULL AND status = 'PAIRED'))) OR "
+            "(paired_at IS NOT NULL AND status = 'PAIRED'))) OR "
             "(pairing_type = 'RECONNECT_EXISTING' AND "
             "((paired_at IS NULL AND status IN ('PENDING', 'EXPIRED')) OR "
             "(paired_at IS NOT NULL AND screen_id IS NOT NULL AND status = 'PAIRED')))",

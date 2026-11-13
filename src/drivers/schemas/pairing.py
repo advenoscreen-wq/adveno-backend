@@ -20,6 +20,12 @@ class CreateScreenPairingSessionRequest(BaseModel):
     pairing_type: PairingType
 
 
+class ApproveScreenPairingSessionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    screen_id: UUID | None = None
+
+
 class ScreenPairingSessionStatusResponse(BaseModel):
     status: PairingSessionStatus
 
@@ -32,3 +38,39 @@ class VerifyScreenPairingSessionResponse(BaseModel):
     screen_exists: bool
     expires_at: datetime
     created_at: datetime
+
+
+class ApproveScreenPairingSessionResponse(BaseModel):
+    session_id: UUID
+    pairing_type: PairingType
+    status: PairingSessionStatus
+    screen_id: UUID | None
+    paired_at: datetime
+
+
+class CreatePairedScreenRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    device_model: str | None = None
+    app_version: str | None = None
+
+
+class CreatePairedScreenResponse(BaseModel):
+    screen_id: UUID
+    screen_code: str
+    name: str
+    credential: str
+
+
+class IssuePairedScreenCredentialResponse(BaseModel):
+    screen_id: UUID
+    credential: str
+
+
+class PairingCompletionResponse(BaseModel):
+    session_id: UUID
+    status: PairingSessionStatus
+    screen_id: UUID | None
+    paired_at: datetime | None
+    completed: bool

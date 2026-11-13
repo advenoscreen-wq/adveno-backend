@@ -30,6 +30,18 @@ class SqlAlchemyScreenCredentialRepository:
         model = await self.session.get(ScreenCredentialModel, credential_id)
         return to_credential(model) if model else None
 
+    async def get_active_credential_by_screen(
+        self, screen_id: UUID, *, for_update: bool = False
+    ) -> ScreenCredential | None:
+        statement = select(ScreenCredentialModel).where(
+            ScreenCredentialModel.screen_id == screen_id,
+            ScreenCredentialModel.revoked_at.is_(None),
+        )
+        if for_update:
+            statement = statement.with_for_update()
+        model = await self.session.scalar(statement)
+        return to_credential(model) if model else None
+
     async def get_active_credentials_by_screen(self, screen_id: UUID) -> list[ScreenCredential]:
         result = await self.session.scalars(
             select(ScreenCredentialModel)

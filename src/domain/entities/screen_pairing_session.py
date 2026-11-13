@@ -40,9 +40,9 @@ class ScreenPairingSession:
             if self.paired_at is not None and self.screen_id is None:
                 raise DomainError("paired reconnect sessions require a screen_id")
         elif self.pairing_type is PairingType.NEW_SCREEN and (
-            (self.paired_at is None) != (self.screen_id is None)
+            self.paired_at is None and self.screen_id is not None
         ):
-            raise DomainError("NEW_SCREEN pairing requires a screen_id only after pairing")
+            raise DomainError("pending NEW_SCREEN pairing cannot reference a screen")
         validate_timestamp(self.expires_at)
         validate_timestamp(self.created_at)
         if self.paired_at is not None:
@@ -91,11 +91,8 @@ class ScreenPairingSession:
         if self.pairing_type is None:
             raise InvalidStateTransition("pairing type must be selected before approval")
         if self.pairing_type is PairingType.NEW_SCREEN:
-            if screen_id is None:
-                raise InvalidStateTransition(
-                    "new screen must be registered before pairing completes"
-                )
-            self.screen_id = screen_id
+            if screen_id is not None:
+                raise InvalidStateTransition("NEW_SCREEN pairing cannot select an existing screen")
         elif self.pairing_type is PairingType.RECONNECT_EXISTING:
             if self.screen_id is None:
                 if screen_id is None:
@@ -105,3 +102,12 @@ class ScreenPairingSession:
                 raise InvalidStateTransition("reconnect pairing cannot change the selected screen")
         self.paired_at = at or utc_now()
         self.status = PairingSessionStatus.PAIRED
+
+    def assign_new_screen(self, screen_id: UUID) -> None:
+        if self.status is not PairingSessionStatus.PAIRED:
+            raise InvalidStateTransition("only a paired session can be assigned a screen")
+        if self.pairing_type is not PairingType.NEW_SCREEN:
+            raise InvalidStateTransition("only NEW_SCREEN sessions can create a screen")
+        if self.screen_id is not None:
+            raise InvalidStateTransition("pairing session already has a screen")
+        self.screen_id = screen_id

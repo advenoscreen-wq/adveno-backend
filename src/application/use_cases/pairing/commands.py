@@ -20,3 +20,31 @@ class GetScreenPairingSessionStatusCommand:
 @dataclass(frozen=True)
 class VerifyScreenPairingSessionCommand:
     pairing_token: str
+
+
+@dataclass(frozen=True)
+class ApproveScreenPairingSessionCommand:
+    pairing_token: str
+    user_id: UUID
+    screen_id: UUID | None = None
+
+
+@dataclass(frozen=True)
+class CreatePairedScreenCommand:
+    session_id: UUID
+    pairing_token: str
+    user_id: UUID
+    name: str
+    device_model: str | None = None
+    app_version: str | None = None
+
+
+@dataclass(frozen=True)
+class IssuePairedScreenCredentialCommand:
+    session_id: UUID
+    pairing_token: str
+
+
+@dataclass(frozen=True)
+class CheckPairingCompletionCommand:
+    pairing_token: str

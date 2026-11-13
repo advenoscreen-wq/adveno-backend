@@ -7,9 +7,13 @@ import httpx
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from adapters.repositories.screen_credential_repository import (
+    SqlAlchemyScreenCredentialRepository,
+)
 from adapters.repositories.screen_pairing_session_repository import (
     SqlAlchemyScreenPairingSessionRepository,
 )
+from adapters.repositories.screen_repository import SqlAlchemyScreenRepository
 from adapters.repositories.user_repository import SqlAlchemyUserRepository
 from application.dtos.oauth import OAuthUserInfo
 from application.exceptions.authentication import InvalidAccessTokenError
@@ -17,7 +21,11 @@ from config.settings import Settings
 from domain import User
 from drivers.core.app import create_app
 from drivers.routers.dependencies import get_oauth_provider, get_user_repository
-from drivers.routers.pairing.dependencies import get_screen_pairing_session_repository
+from drivers.routers.pairing.dependencies import (
+    get_screen_credential_repository,
+    get_screen_pairing_session_repository,
+    get_screen_repository,
+)
 
 
 class FakeOAuthProvider:
@@ -42,11 +50,15 @@ async def pairing_client(
     )
     app = create_app(settings)
     repository = SqlAlchemyScreenPairingSessionRepository(integration_session)
+    credential_repository = SqlAlchemyScreenCredentialRepository(integration_session)
+    screen_repository = SqlAlchemyScreenRepository(integration_session)
     user_repository = SqlAlchemyUserRepository(integration_session)
     await user_repository.save(
         User(id=UUID("00000000-0000-0000-0000-000000000099"))
     )
     app.dependency_overrides[get_screen_pairing_session_repository] = lambda: repository
+    app.dependency_overrides[get_screen_credential_repository] = lambda: credential_repository
+    app.dependency_overrides[get_screen_repository] = lambda: screen_repository
     app.dependency_overrides[get_user_repository] = lambda: user_repository
     app.dependency_overrides[get_oauth_provider] = lambda: FakeOAuthProvider()
     transport = httpx.ASGITransport(app=app)
