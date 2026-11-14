@@ -1,6 +1,6 @@
 """Unit tests for the refresh-token use case."""
 
-from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
@@ -13,22 +13,20 @@ from application.use_cases.auth.refresh_token_use_case import RefreshTokenUseCas
 @pytest.mark.asyncio
 async def test_refresh_token_returns_rotated_tokens(
     refresh_token_use_case: RefreshTokenUseCase,
-    fake_oauth_provider: Any,
+    oauth_provider: Mock,
 ) -> None:
     result = await refresh_token_use_case(RefreshTokenCommand("old-refresh-token"))
 
-    assert result == OAuthTokenResult(
-        "new-access", "new-refresh", "bearer", 3600
-    )
-    assert fake_oauth_provider.refreshed == ["old-refresh-token"]
+    assert result == OAuthTokenResult("new-access", "new-refresh", "bearer", 3600)
+    oauth_provider.refresh_access_token.assert_awaited_once_with("old-refresh-token")
 
 
 @pytest.mark.asyncio
 async def test_refresh_token_requires_a_new_refresh_token(
     refresh_token_use_case: RefreshTokenUseCase,
-    fake_oauth_provider: Any,
+    oauth_provider: Mock,
 ) -> None:
-    fake_oauth_provider.refresh_result = OAuthTokenResult(
+    oauth_provider.refresh_access_token.return_value = OAuthTokenResult(
         "new-access", None, "bearer", 3600
     )
 

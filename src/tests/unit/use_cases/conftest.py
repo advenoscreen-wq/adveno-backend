@@ -1,0 +1,229 @@
+"""Shared mocks and use-case fixtures for unit tests."""
+
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
+from application.dtos.oauth import OAuthTokenResult, OAuthUserInfo
+from application.use_cases.auth.google_callback_use_case import GoogleCallbackUseCase
+from application.use_cases.auth.google_signin_use_case import GoogleSigninUseCase
+from application.use_cases.auth.refresh_token_use_case import RefreshTokenUseCase
+from application.use_cases.pairing.approve_screen_pairing_session_use_case import (
+    ApproveScreenPairingSessionUseCase,
+)
+from application.use_cases.pairing.check_pairing_completion_use_case import (
+    CheckPairingCompletionUseCase,
+)
+from application.use_cases.pairing.create_paired_screen_use_case import (
+    CreatePairedScreenUseCase,
+)
+from application.use_cases.pairing.create_screen_pairing_session_use_case import (
+    CreateScreenPairingSessionUseCase,
+)
+from application.use_cases.pairing.get_screen_pairing_session_status_use_case import (
+    GetScreenPairingSessionStatusUseCase,
+)
+from application.use_cases.pairing.issue_paired_screen_credential_use_case import (
+    IssuePairedScreenCredentialUseCase,
+)
+from application.use_cases.pairing.verify_screen_pairing_session_use_case import (
+    VerifyScreenPairingSessionUseCase,
+)
+from ports.repositories.screen_credential_repository import ScreenCredentialRepository
+from ports.repositories.screen_pairing_session_repository import (
+    ScreenPairingSessionRepository,
+)
+from ports.repositories.screen_repository import ScreenRepository
+from ports.repositories.user_repository import UserRepository
+from ports.services.cache_service import CacheService
+from ports.services.oauth_provider import OAuthProvider
+
+
+def _async_port_mock(port: type, *methods: str) -> Mock:
+    port_mock = Mock(spec=port)
+    for method in methods:
+        setattr(port_mock, method, AsyncMock())
+    return port_mock
+
+
+@pytest.fixture
+def user_repo() -> Mock:
+    repository = _async_port_mock(UserRepository, "get_by_id", "save", "update")
+    repository.get_by_id.return_value = None
+    repository.save.side_effect = lambda user: user
+    repository.update.side_effect = lambda user: user
+    return repository
+
+
+@pytest.fixture
+def cache_service() -> Mock:
+    return _async_port_mock(CacheService, "set", "get", "delete", "pop")
+
+
+@pytest.fixture
+def oauth_provider() -> Mock:
+    provider = _async_port_mock(
+        OAuthProvider,
+        "get_authorization_url",
+        "exchange_code",
+        "refresh_access_token",
+        "get_user_info",
+    )
+    provider.get_authorization_url.return_value = (
+        "https://provider.example/authorize?challenge=example"
+    )
+    provider.exchange_code.return_value = OAuthTokenResult("access", "refresh", "bearer", 3600)
+    provider.refresh_access_token.return_value = OAuthTokenResult(
+        "new-access", "new-refresh", "bearer", 3600
+    )
+    provider.get_user_info.return_value = OAuthUserInfo(
+        provider_user_id="00000000-0000-0000-0000-000000000001",
+        email="user@example.com",
+        email_verified=True,
+    )
+    return provider
+
+
+@pytest.fixture
+def pairing_session_repo() -> Mock:
+    repository = _async_port_mock(
+        ScreenPairingSessionRepository,
+        "get_by_id",
+        "get_by_token_hash",
+        "get_valid_session",
+        "save",
+        "update",
+    )
+    repository.save.side_effect = lambda session: session
+    repository.update.side_effect = lambda session: session
+    return repository
+
+
+@pytest.fixture
+def screen_repo() -> Mock:
+    repository = _async_port_mock(
+        ScreenRepository,
+        "get_by_id",
+        "get_by_screen_code",
+        "list_all",
+        "list_by_user_id",
+        "save",
+        "update",
+    )
+    repository.save.side_effect = lambda screen: screen
+    repository.update.side_effect = lambda screen: screen
+    return repository
+
+
+@pytest.fixture
+def screen_credential_repo() -> Mock:
+    repository = _async_port_mock(
+        ScreenCredentialRepository,
+        "get_by_id",
+        "get_active_credential_by_screen",
+        "get_active_credentials_by_screen",
+        "save",
+        "update",
+    )
+    repository.save.side_effect = lambda credential: credential
+    repository.update.side_effect = lambda credential: credential
+    return repository
+
+
+@pytest.fixture
+def google_callback_use_case(
+    oauth_provider: Mock,
+    cache_service: Mock,
+    user_repo: Mock,
+) -> GoogleCallbackUseCase:
+    return GoogleCallbackUseCase(
+        provider=oauth_provider,
+        cache_service=cache_service,
+        user_repository=user_repo,
+    )
+
+
+@pytest.fixture
+def google_signin_use_case(
+    oauth_provider: Mock,
+    cache_service: Mock,
+) -> GoogleSigninUseCase:
+    return GoogleSigninUseCase(
+        provider=oauth_provider,
+        cache_service=cache_service,
+        state_ttl_seconds=600,
+    )
+
+
+@pytest.fixture
+def refresh_token_use_case(oauth_provider: Mock) -> RefreshTokenUseCase:
+    return RefreshTokenUseCase(provider=oauth_provider)
+
+
+@pytest.fixture
+def approve_screen_pairing_session_use_case(
+    pairing_session_repo: Mock,
+    screen_repo: Mock,
+    screen_credential_repo: Mock,
+) -> ApproveScreenPairingSessionUseCase:
+    return ApproveScreenPairingSessionUseCase(
+        pairing_session_repository=pairing_session_repo,
+        screen_repository=screen_repo,
+        screen_credential_repository=screen_credential_repo,
+    )
+
+
+@pytest.fixture
+def check_pairing_completion_use_case(
+    pairing_session_repo: Mock,
+    screen_credential_repo: Mock,
+) -> CheckPairingCompletionUseCase:
+    return CheckPairingCompletionUseCase(
+        pairing_session_repository=pairing_session_repo,
+        screen_credential_repository=screen_credential_repo,
+    )
+
+
+@pytest.fixture
+def create_paired_screen_use_case(
+    pairing_session_repo: Mock,
+    screen_repo: Mock,
+    screen_credential_repo: Mock,
+) -> CreatePairedScreenUseCase:
+    return CreatePairedScreenUseCase(
+        pairing_session_repository=pairing_session_repo,
+        screen_repository=screen_repo,
+        screen_credential_repository=screen_credential_repo,
+    )
+
+
+@pytest.fixture
+def create_screen_pairing_session_use_case(
+    pairing_session_repo: Mock,
+) -> CreateScreenPairingSessionUseCase:
+    return CreateScreenPairingSessionUseCase(repository=pairing_session_repo)
+
+
+@pytest.fixture
+def get_screen_pairing_session_status_use_case(
+    pairing_session_repo: Mock,
+) -> GetScreenPairingSessionStatusUseCase:
+    return GetScreenPairingSessionStatusUseCase(repository=pairing_session_repo)
+
+
+@pytest.fixture
+def issue_paired_screen_credential_use_case(
+    pairing_session_repo: Mock,
+    screen_credential_repo: Mock,
+) -> IssuePairedScreenCredentialUseCase:
+    return IssuePairedScreenCredentialUseCase(
+        pairing_session_repository=pairing_session_repo,
+        screen_credential_repository=screen_credential_repo,
+    )
+
+
+@pytest.fixture
+def verify_screen_pairing_session_use_case(
+    pairing_session_repo: Mock,
+) -> VerifyScreenPairingSessionUseCase:
+    return VerifyScreenPairingSessionUseCase(repository=pairing_session_repo)

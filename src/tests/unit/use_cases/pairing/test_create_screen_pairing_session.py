@@ -2,7 +2,7 @@
 
 import hashlib
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
@@ -20,7 +20,7 @@ from domain.value_object import PairingSessionStatus, PairingType
 )
 async def test_create_pairing_session_persists_only_hash_and_returns_raw_token(
     create_screen_pairing_session_use_case: CreateScreenPairingSessionUseCase,
-    fake_screen_pairing_session_repository: Any,
+    pairing_session_repo: Mock,
     pairing_type: PairingType,
 ) -> None:
     started_at = datetime.now(UTC)
@@ -30,7 +30,8 @@ async def test_create_pairing_session_persists_only_hash_and_returns_raw_token(
     )
 
     finished_at = datetime.now(UTC)
-    stored = fake_screen_pairing_session_repository.sessions[result.session_id]
+    pairing_session_repo.save.assert_awaited_once()
+    stored = pairing_session_repo.save.await_args.args[0]
     expected_hash = hashlib.sha256(result.pairing_token.encode("utf-8")).hexdigest()
 
     assert result.pairing_token
