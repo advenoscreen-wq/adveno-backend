@@ -13,7 +13,6 @@ from application.exceptions.pairing import (
 )
 from application.use_cases.pairing.commands import ApproveScreenPairingSessionCommand
 from application.use_cases.pairing.results import ApproveScreenPairingSessionResult
-from domain.entities.screen_credential import ScreenCredential
 from domain.entities.screen_pairing_session import ScreenPairingSession
 from domain.value_object import PairingSessionStatus, PairingType
 from ports.repositories.screen_credential_repository import ScreenCredentialRepository
@@ -58,7 +57,6 @@ class ApproveScreenPairingSessionUseCase:
             await self._approve_existing_screen(
                 command=command,
                 session=session,
-                token_hash=token_hash,
             )
 
         updated = await self._pairing_session_repository.update(session)
@@ -112,7 +110,6 @@ class ApproveScreenPairingSessionUseCase:
         *,
         command: ApproveScreenPairingSessionCommand,
         session: ScreenPairingSession,
-        token_hash: str,
     ) -> None:
         if command.screen_id is None:
             raise PairingApprovalValidationError(
@@ -137,16 +134,8 @@ class ApproveScreenPairingSessionUseCase:
                 for_update=True,
             )
         )
-
         if active_credential is not None:
             active_credential.revoke()
             await self._screen_credential_repository.update(active_credential)
-
-        await self._screen_credential_repository.save(
-            ScreenCredential(
-                screen_id=screen.id,
-                credential_hash=token_hash,
-            )
-        )
 
         session.mark_as_paired(screen_id=screen.id)

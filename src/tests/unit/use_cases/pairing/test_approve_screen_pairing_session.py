@@ -87,9 +87,7 @@ async def test_reconnect_approval_assigns_owned_active_screen(
     active_credentials = await fake_screen_credential_repository.get_active_credentials_by_screen(
         screen.id
     )
-    assert len(active_credentials) == 1
-    assert active_credentials[0].id != old_credential.id
-    assert active_credentials[0].credential_hash == token_hash
+    assert active_credentials == []
     assert old_credential.id in fake_screen_credential_repository.credentials
 
 

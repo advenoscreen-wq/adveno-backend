@@ -8,12 +8,19 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from adapters.repositories.screen_credential_repository import (
+    SqlAlchemyScreenCredentialRepository,
+)
 from adapters.repositories.screen_repository import SqlAlchemyScreenRepository
 from adapters.repositories.user_repository import SqlAlchemyUserRepository
-from domain import Screen, User
+from domain import Screen, ScreenCredential, User
 from domain.entities.common import utc_now
 from domain.value_object import PairingSessionStatus, PairingType
-from drivers.database.models.entities import ScreenModel, ScreenPairingSessionModel
+from drivers.database.models.entities import (
+    ScreenCredentialModel,
+    ScreenModel,
+    ScreenPairingSessionModel,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -69,7 +76,11 @@ async def test_reconnect_approval_requires_owned_screen_and_preserves_it(
     integration_session: AsyncSession,
 ) -> None:
     screen_repository = SqlAlchemyScreenRepository(integration_session)
+    credential_repository = SqlAlchemyScreenCredentialRepository(integration_session)
     screen = await screen_repository.save(Screen(user_id=USER_ID, name="Lobby"))
+    original_credential = await credential_repository.save(
+        ScreenCredential(screen_id=screen.id, credential_hash="existing-credential-hash")
+    )
     original_code = screen.screen_code
 
     other_user_id = UUID("00000000-0000-0000-0000-000000000100")
@@ -118,6 +129,34 @@ async def test_reconnect_approval_requires_owned_screen_and_preserves_it(
     assert persisted_screen.user_id == USER_ID
     assert persisted_screen.screen_code == original_code
     assert persisted_screen.name == "Lobby"
+    persisted_old_credential = await integration_session.get(
+        ScreenCredentialModel,
+        original_credential.id,
+    )
+    assert persisted_old_credential is not None
+    assert persisted_old_credential.revoked_at is not None
+    assert (
+        await integration_session.scalar(
+            select(ScreenCredentialModel.id).where(
+                ScreenCredentialModel.screen_id == screen.id,
+                ScreenCredentialModel.revoked_at.is_(None),
+            )
+        )
+        is None
+    )
+
+    issued = await pairing_client.post(
+        f"/api/v1/pairing/sessions/{session_id}/credential",
+        headers={"X-Pairing-Token": pairing_token},
+    )
+    assert issued.status_code == 200
+    active_credential = await integration_session.scalar(
+        select(ScreenCredentialModel).where(
+            ScreenCredentialModel.screen_id == screen.id,
+            ScreenCredentialModel.revoked_at.is_(None),
+        )
+    )
+    assert active_credential is not None
 
 
 async def test_approval_rejects_expired_session(

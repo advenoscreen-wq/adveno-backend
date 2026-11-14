@@ -50,13 +50,6 @@ class PairingScreenAlreadyCreatedError(AppError):
         )
 
 
-class PairingCredentialNotAvailableError(AppError):
-    def __init__(self) -> None:
-        super().__init__(
-            "A paired screen credential is not available for this session.",
-            code="PAIRING_CREDENTIAL_NOT_AVAILABLE",
-            status_code=409,
-        )
 
 
 class PairingApprovalValidationError(AppError):

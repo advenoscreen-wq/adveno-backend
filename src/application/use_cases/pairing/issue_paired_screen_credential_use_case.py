@@ -5,7 +5,6 @@ import hmac
 import secrets
 
 from application.exceptions.pairing import (
-    PairingCredentialNotAvailableError,
     PairingSessionNotFoundError,
     PairingSessionNotPairedError,
 )
@@ -52,11 +51,9 @@ class IssuePairedScreenCredentialUseCase:
                 for_update=True,
             )
         )
-        if active_credential is None:
-            raise PairingCredentialNotAvailableError()
-
-        active_credential.revoke()
-        await self._screen_credential_repository.update(active_credential)
+        if active_credential is not None:
+            active_credential.revoke()
+            await self._screen_credential_repository.update(active_credential)
 
         raw_credential = secrets.token_urlsafe(32)
         credential_hash = hashlib.sha256(raw_credential.encode("utf-8")).hexdigest()

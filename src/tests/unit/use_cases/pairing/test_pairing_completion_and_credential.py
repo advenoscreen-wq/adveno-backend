@@ -7,7 +7,6 @@ from uuid import uuid4
 
 import pytest
 
-from application.exceptions.pairing import PairingCredentialNotAvailableError
 from application.use_cases.pairing.check_pairing_completion_use_case import (
     CheckPairingCompletionUseCase,
 )
@@ -109,9 +108,10 @@ async def test_credential_endpoint_replaces_active_credential_and_returns_raw_se
 
 
 @pytest.mark.asyncio
-async def test_credential_endpoint_rejects_paired_session_without_active_credential(
+async def test_credential_endpoint_creates_first_credential_after_reconnect_approval(
     issue_paired_screen_credential_use_case: IssuePairedScreenCredentialUseCase,
     fake_screen_pairing_session_repository: Any,
+    fake_screen_credential_repository: Any,
 ) -> None:
     pairing_token = "missing-credential-token"
     session = ScreenPairingSession.create(
@@ -123,10 +123,16 @@ async def test_credential_endpoint_rejects_paired_session_without_active_credent
     session.mark_as_paired(screen_id=session.screen_id)
     await fake_screen_pairing_session_repository.save(session)
 
-    with pytest.raises(PairingCredentialNotAvailableError):
-        await issue_paired_screen_credential_use_case(
-            IssuePairedScreenCredentialCommand(
-                session_id=session.id,
-                pairing_token=pairing_token,
-            )
+    result = await issue_paired_screen_credential_use_case(
+        IssuePairedScreenCredentialCommand(
+            session_id=session.id,
+            pairing_token=pairing_token,
         )
+    )
+    active = await fake_screen_credential_repository.get_active_credentials_by_screen(
+        session.screen_id
+    )
+    assert len(active) == 1
+    assert active[0].credential_hash == hashlib.sha256(
+        result.credential.encode("utf-8")
+    ).hexdigest()

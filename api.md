@@ -137,7 +137,8 @@ screen owned by the authenticated user:
 ```
 
 The reconnect path associates the session with that existing screen and
-preserves its data. Expired sessions return `410 PAIRING_SESSION_EXPIRED`;
+preserves its data. It revokes the screen's active credential but does not
+create a replacement; call the credential endpoint after approval. Expired sessions return `410 PAIRING_SESSION_EXPIRED`;
 already completed sessions return `409 PAIRING_SESSION_NOT_PENDING`.
 
 **Response `200`:**
@@ -177,8 +178,9 @@ the credential and use it for subsequent device authentication.
 
 Issues a fresh credential for a paired session. Requires the session's raw
 pairing token in `X-Pairing-Token`. The current active credential is revoked and
-kept for history; its replacement is returned once, with only its SHA-256 hash
-stored in PostgreSQL. Calling this endpoint again rotates the credential again.
+kept for history when present; a new credential is created if none exists. The
+credential is returned once, with only its SHA-256 hash stored in PostgreSQL.
+Calling this endpoint again rotates the credential again.
 
 **Response `200`:** `screen_id` and the new raw `credential`.
 
