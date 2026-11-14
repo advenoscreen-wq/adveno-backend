@@ -88,6 +88,9 @@ async def test_reconnect_approval_requires_owned_screen_and_preserves_it(
     other_screen = await screen_repository.save(
         Screen(user_id=other_user_id, name="Private screen")
     )
+    # The API uses a separate request-scoped session and cannot see these rows
+    # until the test session commits them.
+    await integration_session.commit()
 
     created = await pairing_client.post(
         "/api/v1/pairing/sessions",
@@ -134,6 +137,7 @@ async def test_reconnect_approval_requires_owned_screen_and_preserves_it(
         original_credential.id,
     )
     assert persisted_old_credential is not None
+    await integration_session.refresh(persisted_old_credential)
     assert persisted_old_credential.revoked_at is not None
     assert (
         await integration_session.scalar(
@@ -174,7 +178,7 @@ async def test_approval_rejects_expired_session(
     )
     assert session is not None
     session.expires_at = utc_now() - timedelta(seconds=1)
-    await integration_session.flush()
+    await integration_session.commit()
 
     response = await pairing_client.post(
         "/api/v1/pairing/sessions/approve",
@@ -184,3 +188,45 @@ async def test_approval_rejects_expired_session(
 
     assert response.status_code == 410
     assert response.json()["error"]["code"] == "PAIRING_SESSION_EXPIRED"
+
+
+async def test_approval_requires_authenticated_user(
+    pairing_client: httpx.AsyncClient,
+) -> None:
+    created = await pairing_client.post(
+        "/api/v1/pairing/sessions",
+        json={"pairing_type": PairingType.NEW_SCREEN.value},
+    )
+    response = await pairing_client.post(
+        "/api/v1/pairing/sessions/approve",
+        headers={"X-Pairing-Token": created.json()["pairing_token"]},
+        json={},
+    )
+
+    assert response.status_code == 401
+
+
+async def test_reconnect_approval_requires_screen_id(
+    pairing_client: httpx.AsyncClient,
+) -> None:
+    created = await pairing_client.post(
+        "/api/v1/pairing/sessions",
+        json={"pairing_type": PairingType.RECONNECT_EXISTING.value},
+    )
+    response = await pairing_client.post(
+        "/api/v1/pairing/sessions/approve",
+        headers={**AUTH_HEADERS, "X-Pairing-Token": created.json()["pairing_token"]},
+        json={},
+    )
+
+    assert response.status_code == 422
+
+
+async def test_approval_requires_pairing_token(
+    pairing_client: httpx.AsyncClient,
+) -> None:
+    response = await pairing_client.post(
+        "/api/v1/pairing/sessions/approve", headers=AUTH_HEADERS, json={}
+    )
+
+    assert response.status_code == 422

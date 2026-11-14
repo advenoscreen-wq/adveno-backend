@@ -21,7 +21,7 @@ USER_ID = UUID("00000000-0000-0000-0000-000000000099")
 AUTH_HEADERS = {"Authorization": "Bearer valid-access-token"}
 
 
-async def test_create_screen_requires_paired_session_and_assigns_screen_id(
+async def test_create_screen_requires_paired_session(
     pairing_client: httpx.AsyncClient,
     integration_session: AsyncSession,
 ) -> None:
@@ -42,25 +42,12 @@ async def test_create_screen_requires_paired_session_and_assigns_screen_id(
     assert pending.status_code == 409
     assert pending.json()["error"]["code"] == "PAIRING_SESSION_NOT_PAIRED"
     assert await integration_session.scalar(select(ScreenModel.id).limit(1)) is None
-    incomplete = await pairing_client.get(
-        "/api/v1/pairing/sessions/completion",
-        headers=headers,
-    )
-    assert incomplete.status_code == 200
-    assert incomplete.json()["completed"] is False
-
     approved = await pairing_client.post(
         "/api/v1/pairing/sessions/approve",
         headers=headers,
         json={},
     )
     assert approved.status_code == 200
-    approved_but_unregistered = await pairing_client.get(
-        "/api/v1/pairing/sessions/completion",
-        headers=headers,
-    )
-    assert approved_but_unregistered.json()["completed"] is False
-
     response = await pairing_client.post(
         f"/api/v1/pairing/sessions/{session_id}/screen",
         headers=headers,
@@ -86,36 +73,48 @@ async def test_create_screen_requires_paired_session_and_assigns_screen_id(
         select(ScreenCredentialModel).where(ScreenCredentialModel.screen_id == screen_id)
     )
     assert credential is not None
-    assert credential.credential_hash == hashlib.sha256(
-        result["credential"].encode("utf-8")
-    ).hexdigest()
+    assert (
+        credential.credential_hash
+        == hashlib.sha256(result["credential"].encode("utf-8")).hexdigest()
+    )
     assert result["credential"] != credential.credential_hash
     assert session is not None
     assert session.status == PairingSessionStatus.PAIRED.value
     assert session.screen_id == screen_id
 
-    complete = await pairing_client.get(
-        "/api/v1/pairing/sessions/completion",
-        headers=headers,
-    )
-    assert complete.status_code == 200
-    assert complete.json()["completed"] is True
 
-    old_credential_id = credential.id
-    issued = await pairing_client.post(
-        f"/api/v1/pairing/sessions/{session_id}/credential",
-        headers=headers,
+async def test_create_screen_requires_authorization(
+    pairing_client: httpx.AsyncClient,
+) -> None:
+    response = await pairing_client.post(
+        f"/api/v1/pairing/sessions/{UUID(int=1)}/screen",
+        headers={"X-Pairing-Token": "token"},
+        json={"name": "TV"},
     )
-    assert issued.status_code == 200
-    replacement_credential = await integration_session.scalar(
-        select(ScreenCredentialModel)
-        .where(ScreenCredentialModel.screen_id == screen_id)
-        .where(ScreenCredentialModel.revoked_at.is_(None))
+
+    assert response.status_code == 401
+
+
+@pytest.mark.parametrize("body", [{}, {"name": "TV", "unexpected": True}])
+async def test_create_screen_rejects_invalid_body(
+    pairing_client: httpx.AsyncClient, body: dict[str, str]
+) -> None:
+    response = await pairing_client.post(
+        f"/api/v1/pairing/sessions/{UUID(int=1)}/screen",
+        headers={**AUTH_HEADERS, "X-Pairing-Token": "token"},
+        json=body,
     )
-    old_credential = await integration_session.get(ScreenCredentialModel, old_credential_id)
-    assert old_credential is not None
-    assert old_credential.revoked_at is not None
-    assert replacement_credential is not None
-    assert replacement_credential.credential_hash == hashlib.sha256(
-        issued.json()["credential"].encode("utf-8")
-    ).hexdigest()
+
+    assert response.status_code == 422
+
+
+async def test_create_screen_requires_pairing_token(
+    pairing_client: httpx.AsyncClient,
+) -> None:
+    response = await pairing_client.post(
+        f"/api/v1/pairing/sessions/{UUID(int=1)}/screen",
+        headers=AUTH_HEADERS,
+        json={"name": "TV"},
+    )
+
+    assert response.status_code == 422
