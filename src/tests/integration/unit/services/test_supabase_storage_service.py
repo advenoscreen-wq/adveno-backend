@@ -7,6 +7,23 @@ from adapters.services.storage.supabase_storage_service import SupabaseStorageSe
 from application.exceptions.storage import StorageServiceError
 
 
+def test_get_public_url_builds_url_from_bucket_and_object_path() -> None:
+    service = SupabaseStorageService(
+        supabase_url="https://example.supabase.co/",
+        supabase_anon_key="anon-key",
+    )
+
+    url = service.get_public_url(
+        bucket="adveno",
+        object_path="users/user-id/folder/image one.png",
+    )
+
+    assert url == (
+        "https://example.supabase.co/storage/v1/object/public/adveno/"
+        "users/user-id/folder/image%20one.png"
+    )
+
+
 @pytest.mark.asyncio
 async def test_create_signed_upload_url_returns_supabase_upload_url() -> None:
     captured_request: httpx.Request | None = None
@@ -62,6 +79,32 @@ async def test_create_signed_upload_url_builds_url_from_storage_token() -> None:
         "https://example.supabase.co/storage/v1/object/upload/sign/media/image.png"
         "?token=token+value"
     )
+
+
+@pytest.mark.asyncio
+async def test_create_signed_upload_url_requests_upsert_when_replacing_object() -> None:
+    captured_request: httpx.Request | None = None
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal captured_request
+        captured_request = request
+        return httpx.Response(200, json={"token": "upload-token"})
+
+    service = SupabaseStorageService(
+        supabase_url="https://example.supabase.co",
+        supabase_anon_key="anon-key",
+        transport=httpx.MockTransport(respond),
+    )
+
+    await service.create_signed_upload_url(
+        bucket="media",
+        object_path="users/user-id/object.png",
+        access_token="user-access-token",
+        upsert=True,
+    )
+
+    assert captured_request is not None
+    assert captured_request.read() == b'{"upsert":true}'
 
 
 @pytest.mark.asyncio

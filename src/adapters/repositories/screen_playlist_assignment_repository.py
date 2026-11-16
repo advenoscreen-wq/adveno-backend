@@ -73,6 +73,19 @@ class SqlAlchemyScreenPlaylistAssignmentRepository:
         )
         return [to_assignment(model) for model in result]
 
+    async def list_active_by_playlist_ids(
+        self, playlist_ids: list[UUID]
+    ) -> list[ScreenPlaylistAssignment]:
+        if not playlist_ids:
+            return []
+        result = await self.session.scalars(
+            select(ScreenPlaylistAssignmentModel).where(
+                ScreenPlaylistAssignmentModel.playlist_id.in_(playlist_ids),
+                ScreenPlaylistAssignmentModel.unassigned_at.is_(None),
+            )
+        )
+        return [to_assignment(model) for model in result]
+
     async def save(self, assignment: ScreenPlaylistAssignment) -> ScreenPlaylistAssignment:
         await self._validate_ownership(assignment)
         model = ScreenPlaylistAssignmentModel()

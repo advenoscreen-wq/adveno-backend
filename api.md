@@ -13,6 +13,119 @@
 
 Business endpoints will be documented here when approved and implemented.
 
+## Media uploads
+
+### `POST /api/v1/media/upload-url`
+
+Requests a Supabase Storage signed upload URL. Requires a valid Supabase access
+token in `Authorization: Bearer <access_token>`. The backend creates a unique
+object path scoped to the authenticated user and requests a signed URL using
+the caller's token, so Supabase Storage policies still apply.
+
+**Request:**
+
+```json
+{"file_name": "welcome.png"}
+```
+
+**Response `200`:**
+
+```json
+{
+  "signed_url": "https://<project>.supabase.co/storage/v1/object/upload/sign/...",
+  "storage_path": "users/<user-id>/<unique-id>/welcome.png"
+}
+```
+
+Upload the file directly to `signed_url` with an HTTP `PUT`. Retain
+`storage_path` for creating the media metadata record in a later request. This
+endpoint only creates the upload URL; it does not create a media record.
+
+### `POST /api/v1/media`
+
+Registers metadata after the file has been uploaded. Requires a valid Supabase
+access token in `Authorization: Bearer <access_token>`. The storage path must
+belong to the authenticated user. A bucket-prefixed path such as
+`adveno/users/<user-id>/<unique-id>/file.png` is accepted when `adveno` is the
+configured bucket; the bucket name is removed before the object path is stored.
+
+**Request:**
+
+```json
+{
+  "name": "Lobby banner",
+  "media_type": "IMAGE",
+  "mime_type": "image/png",
+  "storage_path": "users/<user-id>/<unique-id>/file.png",
+  "file_size": 2048,
+  "width": 1920,
+  "height": 1080,
+  "duration_seconds": null
+}
+```
+
+`media_type` is `IMAGE` or `VIDEO`. `width`, `height`, and `duration_seconds`
+are optional. The backend generates a unique `checksum` value and returns it
+with the created media record. A newly generated checksum lets clients detect
+that a replacement has been saved and refresh the media.
+Registering an already registered storage path returns `409 MEDIA_ALREADY_REGISTERED`;
+a path outside the authenticated user's storage folder returns `422`.
+Create, get, and update responses include `media_url`, a public Supabase Storage
+URL built from the configured project URL, bucket, and object path. The bucket
+must be configured as public for the URL to be readable without authentication.
+
+### `GET /api/v1/media/{media_id}`
+
+Returns a media asset owned by the authenticated user, with its public
+`media_url`. Unknown or another user's media returns `404 MEDIA_NOT_FOUND`.
+
+### `POST /api/v1/media/{media_id}/upload-url`
+
+Requests an upload URL to replace the object for an existing active media record.
+Requires a valid Supabase access token. The media record must belong to the
+authenticated user. The response contains the same `storage_path` and a signed
+URL configured to allow overwriting that object. Upload the replacement file
+directly to the URL; use `PUT` and retain the existing object path.
+
+An unknown, deleted, or another user's media ID returns `404 MEDIA_NOT_FOUND`.
+
+### `PUT /api/v1/media/{media_id}`
+
+Updates an existing media record. Requires authentication. `is_replaced` is
+required. `name` is always updated. When `false`, provide only `name`; file
+metadata and checksum stay unchanged. When `true`, also provide the replacement file
+metadata (`media_type`, `mime_type`, `storage_path`, and `file_size`; dimensions
+and duration are optional). The backend generates a new unique checksum. Screens
+assigned to playlists containing this media have their desired synchronization
+revision incremented in the same transaction as the media update.
+
+Rename request:
+
+
+```json
+{"is_replaced": false, "name": "Lobby banner"}
+```
+
+Replacement request:
+
+```json
+{
+  "is_replaced": true,
+  "name": "Updated banner",
+  "media_type": "IMAGE",
+  "mime_type": "image/png",
+  "storage_path": "users/<user-id>/<unique-id>/file.png",
+  "file_size": 2048,
+  "width": 1920,
+  "height": 1080
+}
+```
+
+The response contains the saved media metadata and `screen_sync`, an array of
+`screen_id` and `desired_revision` values for every active screen using the
+media through an assigned playlist. If no screen currently uses the media, the
+array is empty.
+
 ## BFF OAuth authentication
 
 ### `GET /api/v1/auth/google/request`

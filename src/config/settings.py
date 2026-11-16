@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     cors_allowed_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
     supabase_url: str = ""
     supabase_anon_key: SecretStr = SecretStr("")
+    media_storage_bucket: str = Field(default="adveno", min_length=1)
     oauth_provider: str = "google"
     oauth_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
     oauth_state_ttl_seconds: int = Field(default=600, ge=60)

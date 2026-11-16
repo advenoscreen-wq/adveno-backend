@@ -31,7 +31,7 @@ from domain.entities.entities import (
     ScreenSyncState,
     User,
 )
-from domain.value_object import MediaType, PairingType
+from domain.value_object import MediaType, PairingSessionStatus, PairingType
 
 
 @pytest.mark.integration
@@ -63,8 +63,8 @@ async def test_all_domain_repositories_round_trip_entities(
         "pairing-hash",
         timedelta(minutes=5),
         pairing_type=PairingType.RECONNECT_EXISTING,
-        screen_id=screen.id,
     )
+    pairing.mark_as_connecting(screen_id=screen.id)
     credential = ScreenCredential(screen_id=screen.id, credential_hash="credential-hash")
     item = PlaylistItem(playlist_id=playlist.id, media_asset_id=media.id, position=1)
     assignment = ScreenPlaylistAssignment(screen_id=screen.id, playlist_id=playlist.id)
@@ -80,7 +80,10 @@ async def test_all_domain_repositories_round_trip_entities(
     await SqlAlchemyAuditLogRepository(integration_session).save(audit)
 
     assert await SqlAlchemyUserRepository(integration_session).get_by_id(admin.id)
-    assert await pairing_repository.get_by_id(pairing.id)
+    persisted_pairing = await pairing_repository.get_by_id(pairing.id)
+    assert persisted_pairing is not None
+    assert persisted_pairing.status is PairingSessionStatus.CONNECTING
+    assert persisted_pairing.screen_id == screen.id
     assert await pairing_repository.get_by_token_hash(pairing.token_hash)
     assert await SqlAlchemyScreenCredentialRepository(integration_session).get_by_id(credential.id)
     assert await SqlAlchemyMediaAssetRepository(integration_session).get_by_id(media.id)

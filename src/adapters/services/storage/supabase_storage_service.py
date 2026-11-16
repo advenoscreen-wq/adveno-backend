@@ -27,12 +27,20 @@ class SupabaseStorageService:
         self.timeout_seconds = timeout_seconds
         self.transport = transport
 
+    def get_public_url(self, *, bucket: str, object_path: str) -> str:
+        self._validate_upload_path(bucket, object_path)
+        return (
+            f"{self.base_url}/storage/v1/object/public/"
+            f"{quote(bucket, safe='')}/{quote(object_path, safe='/')}"
+        )
+
     async def create_signed_upload_url(
         self,
         *,
         bucket: str,
         object_path: str,
         access_token: str,
+        upsert: bool = False,
     ) -> str:
         self._validate_upload_target(bucket, object_path, access_token)
         operation = {"bucket": bucket}
@@ -49,19 +57,32 @@ class SupabaseStorageService:
             ) as client:
                 response = await client.post(
                     endpoint,
+                    json={"upsert": True} if upsert else {},
                     headers={
                         "apikey": self.anon_key,
                         "Authorization": f"Bearer {access_token}",
+                        "x-upsert": str(upsert).lower(),
                     },
                 )
             response.raise_for_status()
             signed_url = self._extract_signed_url(response.json(), endpoint)
             logger.info("Supabase signed upload URL created", extra=operation)
             return signed_url
+        except httpx.HTTPStatusError as error:
+            logger.error(
+                "Supabase Storage error",
+                extra={
+                    **operation,
+                    "status_code": error.response.status_code,
+                    "response_body": error.response.text,
+                },
+            )
+            raise StorageServiceError() from error
+
         except (httpx.HTTPError, KeyError, TypeError, ValueError) as error:
-            logger.warning(
+            logger.exception(
                 "Supabase signed upload URL request failed",
-                extra={**operation, "error_type": type(error).__name__},
+                extra=operation,
             )
             raise StorageServiceError() from error
 
@@ -86,6 +107,12 @@ class SupabaseStorageService:
 
     @staticmethod
     def _validate_upload_target(bucket: str, object_path: str, access_token: str) -> None:
+        SupabaseStorageService._validate_upload_path(bucket, object_path)
+        if not access_token.strip():
+            raise ValueError("access_token is required")
+
+    @staticmethod
+    def _validate_upload_path(bucket: str, object_path: str) -> None:
         if not bucket.strip() or "/" in bucket:
             raise ValueError("bucket must be a non-empty bucket name")
         if (
@@ -94,5 +121,3 @@ class SupabaseStorageService:
             or any(segment in ("", ".", "..") for segment in object_path.split("/"))
         ):
             raise ValueError("object_path must be a relative object path")
-        if not access_token.strip():
-            raise ValueError("access_token is required")

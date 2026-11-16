@@ -20,7 +20,9 @@ from config.settings import Settings
 from domain import User
 from drivers.core.app import create_app
 from drivers.routers.dependencies import get_cache_service, get_oauth_provider
+from drivers.routers.media.dependencies import get_storage_service
 from ports.services.oauth_provider import OAuthProvider
+from ports.services.storage_service import StorageService
 
 ADMIN_ID = UUID("00000000-0000-0000-0000-000000000099")
 CALLBACK_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
@@ -55,6 +57,21 @@ def oauth_provider() -> Mock:
     return provider
 
 
+@pytest.fixture
+def storage_service() -> Mock:
+    """Mock object storage while keeping API tests isolated from Supabase."""
+    service = Mock(spec=StorageService)
+    service.create_signed_upload_url = AsyncMock(
+        return_value="https://storage.example/signed-upload"
+    )
+    service.get_public_url = Mock(
+        side_effect=lambda *, bucket, object_path: (
+            f"https://project.supabase.co/storage/v1/object/public/{bucket}/{object_path}"
+        )
+    )
+    return service
+
+
 @pytest_asyncio.fixture
 async def api_app(
     postgres_container: PostgresContainer,
@@ -62,6 +79,7 @@ async def api_app(
     redis_service: RedisCacheService,
     integration_session: AsyncSession,
     oauth_provider: Mock,
+    storage_service: Mock,
 ) -> AsyncIterator[object]:
     """Create the application using real test databases and mocked OAuth API."""
     database_url = postgres_container.get_connection_url().replace(
@@ -74,6 +92,8 @@ async def api_app(
         debug=False,
         database_url=database_url,
         redis_url=redis_url,
+        supabase_url="https://project.supabase.co",
+        media_storage_bucket="media",
         oauth_redirect_uri="http://localhost:8000/api/v1/auth/google/callback",
         frontend_after_login_url="http://localhost:3000/login",
         session_cookie_secure=False,
@@ -88,6 +108,7 @@ async def api_app(
     app = create_app(settings)
     app.dependency_overrides[get_cache_service] = lambda: redis_service
     app.dependency_overrides[get_oauth_provider] = lambda: oauth_provider
+    app.dependency_overrides[get_storage_service] = lambda: storage_service
     try:
         yield app
     finally:

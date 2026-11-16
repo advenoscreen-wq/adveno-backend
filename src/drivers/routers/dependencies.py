@@ -58,9 +58,7 @@ def get_oauth_provider(
 
 
 async def get_database_ready(
-    session_factory: Annotated[
-        async_sessionmaker[AsyncSession], Depends(get_session_factory)
-    ],
+    session_factory: Annotated[async_sessionmaker[AsyncSession], Depends(get_session_factory)],
 ) -> bool:
     """Check database connectivity for readiness probes."""
     return await check_database(session_factory)
@@ -104,8 +102,22 @@ async def get_current_user(
     return user
 
 
+async def get_authenticated_access_token(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(HTTPBearer(auto_error=False)),
+    ],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> str:
+    """Return the bearer token after validating the active application user."""
+    if credentials is None:
+        raise AuthenticationRequiredError()
+    return credentials.credentials
+
+
 SettingsDependency = Annotated[Settings, Depends(get_settings)]
 CacheService = Annotated[RedisCacheService, Depends(get_cache_service)]
 OAuthProvider = Annotated[SupabaseOAuthAdapter, Depends(get_oauth_provider)]
 DatabaseReady = Annotated[bool, Depends(get_database_ready)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
+AuthenticatedAccessToken = Annotated[str, Depends(get_authenticated_access_token)]

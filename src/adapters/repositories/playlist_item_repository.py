@@ -54,6 +54,14 @@ class SqlAlchemyPlaylistItemRepository:
         )
         return [to_playlist_item(model) for model in result]
 
+    async def list_by_media_asset_id(self, media_asset_id: UUID) -> list[PlaylistItem]:
+        result = await self.session.scalars(
+            select(PlaylistItemModel)
+            .where(PlaylistItemModel.media_asset_id == media_asset_id)
+            .order_by(PlaylistItemModel.playlist_id)
+        )
+        return [to_playlist_item(model) for model in result]
+
     async def save(self, item: PlaylistItem) -> PlaylistItem:
         await self._validate_ownership(item)
         model = PlaylistItemModel()
