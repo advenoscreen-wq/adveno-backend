@@ -44,7 +44,7 @@ test:
 	uv run pytest
 
 test-unit:
-	uv run pytest src/tests/unit
+	uv run pytest src/tests/integration/unit
 
 test-integration:
 	uv run pytest src/tests/integration -m integration
