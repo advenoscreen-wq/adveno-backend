@@ -4,10 +4,10 @@ Revision ID: b81c4a2f9d60
 Revises: 65a4d712416f
 """
 
-from typing import Sequence
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision: str = "b81c4a2f9d60"
 down_revision: str | None = "65a4d712416f"
@@ -17,12 +17,16 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     bind = op.get_bind()
-    duplicates = bind.execute(
-        sa.text(
-            "SELECT screen_id FROM screen_credentials "
-            "WHERE revoked_at IS NULL GROUP BY screen_id HAVING count(*) > 1"
+    duplicates = (
+        bind.execute(
+            sa.text(
+                "SELECT screen_id FROM screen_credentials "
+                "WHERE revoked_at IS NULL GROUP BY screen_id HAVING count(*) > 1"
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     if duplicates:
         raise RuntimeError(
             "Cannot enforce one active screen credential per screen because duplicate "
