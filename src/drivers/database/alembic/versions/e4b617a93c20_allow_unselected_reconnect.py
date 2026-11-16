@@ -36,16 +36,18 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    has_unselected_reconnect = op.get_bind().execute(
-        sa.text(
-            "SELECT id FROM screen_pairing_sessions "
-            "WHERE pairing_type = 'RECONNECT_EXISTING' AND screen_id IS NULL LIMIT 1"
+    has_unselected_reconnect = (
+        op.get_bind()
+        .execute(
+            sa.text(
+                "SELECT id FROM screen_pairing_sessions "
+                "WHERE pairing_type = 'RECONNECT_EXISTING' AND screen_id IS NULL LIMIT 1"
+            )
         )
-    ).scalar_one_or_none()
+        .scalar_one_or_none()
+    )
     if has_unselected_reconnect is not None:
-        raise RuntimeError(
-            "Cannot downgrade while reconnect sessions have no selected screen."
-        )
+        raise RuntimeError("Cannot downgrade while reconnect sessions have no selected screen.")
 
     op.drop_constraint(
         "ck_pairing_sessions_screen_reference",

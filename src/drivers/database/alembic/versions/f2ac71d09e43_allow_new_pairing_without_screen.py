@@ -47,13 +47,17 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    has_paired_new_without_screen = op.get_bind().execute(
-        sa.text(
-            "SELECT id FROM screen_pairing_sessions "
-            "WHERE pairing_type = 'NEW_SCREEN' AND status = 'PAIRED' "
-            "AND screen_id IS NULL LIMIT 1"
+    has_paired_new_without_screen = (
+        op.get_bind()
+        .execute(
+            sa.text(
+                "SELECT id FROM screen_pairing_sessions "
+                "WHERE pairing_type = 'NEW_SCREEN' AND status = 'PAIRED' "
+                "AND screen_id IS NULL LIMIT 1"
+            )
         )
-    ).scalar_one_or_none()
+        .scalar_one_or_none()
+    )
     if has_paired_new_without_screen is not None:
         raise RuntimeError(
             "Cannot downgrade while NEW_SCREEN pairing sessions are paired without a screen."

@@ -24,7 +24,8 @@ def _reference_constraint() -> str:
         "(paired_at IS NOT NULL AND screen_id IS NOT NULL AND status = 'PAIRED'))) OR "
         "(pairing_type = 'RECONNECT_EXISTING' AND screen_id IS NOT NULL AND "
         "((paired_at IS NULL AND status IN ('PENDING', 'EXPIRED')) OR "
-        "(paired_at IS NOT NULL AND status = 'PAIRED')))")
+        "(paired_at IS NOT NULL AND status = 'PAIRED')))"
+    )
 
 
 def upgrade() -> None:
@@ -77,21 +78,23 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    pending_without_screen = op.get_bind().execute(
-        sa.text(
-            "SELECT id FROM screen_pairing_sessions "
-            "WHERE pairing_type IS NULL OR screen_id IS NULL LIMIT 1"
+    pending_without_screen = (
+        op.get_bind()
+        .execute(
+            sa.text(
+                "SELECT id FROM screen_pairing_sessions "
+                "WHERE pairing_type IS NULL OR screen_id IS NULL LIMIT 1"
+            )
         )
-    ).scalar_one_or_none()
+        .scalar_one_or_none()
+    )
     if pending_without_screen is not None:
         raise RuntimeError(
             "Cannot downgrade while unselected pairing sessions or sessions without a "
             "screen exist; the previous schema requires a pairing type and screen ID."
         )
 
-    op.drop_constraint(
-        "ck_pairing_sessions_status", "screen_pairing_sessions", type_="check"
-    )
+    op.drop_constraint("ck_pairing_sessions_status", "screen_pairing_sessions", type_="check")
     op.drop_constraint(
         "ck_pairing_sessions_screen_reference",
         "screen_pairing_sessions",

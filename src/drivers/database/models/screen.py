@@ -64,4 +64,5 @@ class ScreenModel(Base):
         "AuditLogModel", back_populates="screen", lazy="raise"
     )
 
+
 __all__ = ["ScreenModel"]

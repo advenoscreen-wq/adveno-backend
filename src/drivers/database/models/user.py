@@ -36,4 +36,5 @@ class UserModel(Base):
         "AuditLogModel", back_populates="admin", lazy="raise"
     )
 
+
 __all__ = ["UserModel"]
