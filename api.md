@@ -171,6 +171,18 @@ access token and rotated refresh token.
 
 ## Screen pairing
 
+### `PATCH /api/v1/screens/{screen_id}`
+
+Updates a screen's user-managed display name. Requires a valid Supabase access
+token. The screen must belong to the authenticated user. Device details such as
+`device_model`, `app_version`, heartbeat, screen code, and synchronization state
+remain managed by the TV/backend.
+
+**Request:** `{"name": "Lobby TV"}`
+
+**Response `200`:** the updated screen ID, screen code, name, status, and update
+timestamp. An unknown or another user's screen returns `404 SCREEN_NOT_FOUND`.
+
 ### `POST /api/v1/pairing/sessions`
 
 Creates a pending pairing session for a TV. The backend stores only a SHA-256

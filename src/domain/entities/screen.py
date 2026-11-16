@@ -62,6 +62,12 @@ class Screen:
         self.status = ScreenStatus.INACTIVE
         self.updated_at = utc_now()
 
+    def rename(self, name: str) -> None:
+        if not name.strip():
+            raise DomainError("screen name is required")
+        self.name = name.strip()
+        self.updated_at = utc_now()
+
     def record_heartbeat(
         self,
         *,
