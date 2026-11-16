@@ -27,15 +27,17 @@ class ScreenPairingSessionModel(Base):
             "(pairing_type IS NULL AND screen_id IS NULL AND paired_at IS NULL "
             "AND status IN ('PENDING', 'EXPIRED')) OR "
             "(pairing_type = 'NEW_SCREEN' AND "
-            "((paired_at IS NULL AND screen_id IS NULL AND status IN ('PENDING', 'EXPIRED')) OR "
-            "(paired_at IS NOT NULL AND status = 'PAIRED'))) OR "
+            "((paired_at IS NULL AND screen_id IS NULL "
+            "AND status IN ('PENDING', 'CONNECTING', 'EXPIRED')) OR "
+            "(paired_at IS NOT NULL AND screen_id IS NOT NULL AND status = 'PAIRED'))) OR "
             "(pairing_type = 'RECONNECT_EXISTING' AND "
-            "((paired_at IS NULL AND status IN ('PENDING', 'EXPIRED')) OR "
+            "((paired_at IS NULL AND screen_id IS NULL AND status IN ('PENDING', 'EXPIRED')) OR "
+            "(paired_at IS NULL AND screen_id IS NOT NULL AND status = 'CONNECTING') OR "
             "(paired_at IS NOT NULL AND screen_id IS NOT NULL AND status = 'PAIRED')))",
             name="ck_pairing_sessions_screen_reference",
         ),
         CheckConstraint(
-            "status IN ('PENDING', 'PAIRED', 'EXPIRED')",
+            "status IN ('PENDING', 'CONNECTING', 'PAIRED', 'EXPIRED')",
             name="ck_pairing_sessions_status",
         ),
         Index("ix_pairing_sessions_valid", "token_hash", "expires_at", "paired_at"),

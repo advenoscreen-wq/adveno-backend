@@ -28,7 +28,7 @@ USER_ID = UUID("00000000-0000-0000-0000-000000000099")
 AUTH_HEADERS = {"Authorization": "Bearer valid-access-token"}
 
 
-async def test_new_screen_approval_only_pairs_the_session(
+async def test_new_screen_approval_marks_session_connecting(
     pairing_client: httpx.AsyncClient,
     integration_session: AsyncSession,
 ) -> None:
@@ -50,18 +50,33 @@ async def test_new_screen_approval_only_pairs_the_session(
     body = response.json()
     assert body["session_id"] == str(session_id)
     assert body["pairing_type"] == PairingType.NEW_SCREEN.value
-    assert body["status"] == PairingSessionStatus.PAIRED.value
+    assert body["status"] == PairingSessionStatus.CONNECTING.value
     assert body["screen_id"] is None
-    assert body["paired_at"] is not None
+    assert body["paired_at"] is None
 
     session = await integration_session.scalar(
         select(ScreenPairingSessionModel).where(ScreenPairingSessionModel.id == session_id)
     )
     assert session is not None
-    assert session.status == PairingSessionStatus.PAIRED.value
+    assert session.status == PairingSessionStatus.CONNECTING.value
     assert session.screen_id is None
-    assert session.paired_at is not None
+    assert session.paired_at is None
     assert await integration_session.scalar(select(ScreenModel.id).limit(1)) is None
+    status_response = await pairing_client.get(
+        f"/api/v1/pairing/sessions/{session_id}",
+        headers={"X-Pairing-Token": pairing_token},
+    )
+    assert status_response.json() == {"status": PairingSessionStatus.CONNECTING.value}
+    verification_response = await pairing_client.get(
+        "/api/v1/pairing/sessions/verify",
+        headers={
+            **AUTH_HEADERS,
+            "X-Pairing-Token": pairing_token,
+        },
+    )
+    assert verification_response.status_code == 200
+    assert verification_response.json()["status"] == PairingSessionStatus.CONNECTING.value
+    assert verification_response.json()["screen_exists"] is False
 
     repeated = await pairing_client.post(
         "/api/v1/pairing/sessions/approve",
@@ -114,9 +129,21 @@ async def test_reconnect_approval_requires_owned_screen_and_preserves_it(
     )
     assert approved.status_code == 200
     body = approved.json()
-    assert body["status"] == PairingSessionStatus.PAIRED.value
+    assert body["status"] == PairingSessionStatus.CONNECTING.value
     assert body["screen_id"] == str(screen.id)
-    assert body["paired_at"] is not None
+    assert body["paired_at"] is None
+    status_response = await pairing_client.get(
+        f"/api/v1/pairing/sessions/{session_id}",
+        headers={"X-Pairing-Token": pairing_token},
+    )
+    assert status_response.json() == {"status": PairingSessionStatus.CONNECTING.value}
+    verification_response = await pairing_client.get(
+        "/api/v1/pairing/sessions/verify",
+        headers={**AUTH_HEADERS, "X-Pairing-Token": pairing_token},
+    )
+    assert verification_response.status_code == 200
+    assert verification_response.json()["status"] == PairingSessionStatus.CONNECTING.value
+    assert verification_response.json()["screen_exists"] is True
 
     persisted_session = await integration_session.scalar(
         select(ScreenPairingSessionModel).where(ScreenPairingSessionModel.id == session_id)
@@ -125,9 +152,9 @@ async def test_reconnect_approval_requires_owned_screen_and_preserves_it(
         select(ScreenModel).where(ScreenModel.id == screen.id)
     )
     assert persisted_session is not None
-    assert persisted_session.status == PairingSessionStatus.PAIRED.value
+    assert persisted_session.status == PairingSessionStatus.CONNECTING.value
     assert persisted_session.screen_id == screen.id
-    assert persisted_session.paired_at is not None
+    assert persisted_session.paired_at is None
     assert persisted_screen is not None
     assert persisted_screen.user_id == USER_ID
     assert persisted_screen.screen_code == original_code
@@ -154,6 +181,14 @@ async def test_reconnect_approval_requires_owned_screen_and_preserves_it(
         headers={"X-Pairing-Token": pairing_token},
     )
     assert issued.status_code == 200
+    await integration_session.refresh(persisted_session)
+    assert persisted_session.status == PairingSessionStatus.PAIRED.value
+    assert persisted_session.paired_at is not None
+    status_response = await pairing_client.get(
+        f"/api/v1/pairing/sessions/{session_id}",
+        headers={"X-Pairing-Token": pairing_token},
+    )
+    assert status_response.json() == {"status": PairingSessionStatus.PAIRED.value}
     active_credential = await integration_session.scalar(
         select(ScreenCredentialModel).where(
             ScreenCredentialModel.screen_id == screen.id,

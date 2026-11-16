@@ -45,9 +45,11 @@ class CreatePairedScreenUseCase:
             raise PairingSessionNotFoundError()
         if session.status is PairingSessionStatus.EXPIRED:
             raise PairingSessionExpiredError()
-        if session.status is not PairingSessionStatus.PAIRED:
-            if session.is_expired():
-                raise PairingSessionExpiredError()
+        if session.status is PairingSessionStatus.PAIRED and session.screen_id is not None:
+            raise PairingScreenAlreadyCreatedError()
+        if session.is_expired():
+            raise PairingSessionExpiredError()
+        if session.status is not PairingSessionStatus.CONNECTING:
             raise PairingSessionNotPairedError()
         if session.pairing_type is not PairingType.NEW_SCREEN:
             raise PairingApprovalValidationError(
@@ -74,6 +76,7 @@ class CreatePairedScreenUseCase:
             )
         )
         session.assign_new_screen(screen.id)
+        session.mark_as_paired()
         await self._pairing_session_repository.update(session)
 
         return CreatePairedScreenResult(

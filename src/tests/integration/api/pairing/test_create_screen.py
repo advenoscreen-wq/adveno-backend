@@ -21,7 +21,7 @@ USER_ID = UUID("00000000-0000-0000-0000-000000000099")
 AUTH_HEADERS = {"Authorization": "Bearer valid-access-token"}
 
 
-async def test_create_screen_requires_paired_session(
+async def test_create_screen_requires_connecting_session(
     pairing_client: httpx.AsyncClient,
     integration_session: AsyncSession,
 ) -> None:

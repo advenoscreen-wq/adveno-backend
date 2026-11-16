@@ -28,6 +28,8 @@ async def test_status_lookup_returns_paired_status_for_matching_token(
         timedelta(minutes=10),
         pairing_type=PairingType.NEW_SCREEN,
     )
+    session.mark_as_connecting()
+    session.assign_new_screen(uuid4())
     session.mark_as_paired()
     pairing_session_repo.get_by_id.return_value = session
 
@@ -48,6 +50,28 @@ async def test_status_lookup_reports_expired_pending_session(
     session = ScreenPairingSession.create(
         hashlib.sha256(pairing_token.encode()).hexdigest(), timedelta(minutes=10)
     )
+    session.expires_at = utc_now() - timedelta(seconds=1)
+    pairing_session_repo.get_by_id.return_value = session
+
+    result = await get_screen_pairing_session_status_use_case(
+        GetScreenPairingSessionStatusCommand(session.id, pairing_token)
+    )
+
+    assert result.status is PairingSessionStatus.EXPIRED
+
+
+@pytest.mark.asyncio
+async def test_status_lookup_reports_expired_connecting_session(
+    get_screen_pairing_session_status_use_case: GetScreenPairingSessionStatusUseCase,
+    pairing_session_repo: Mock,
+) -> None:
+    pairing_token = "expired-connecting-token"
+    session = ScreenPairingSession.create(
+        hashlib.sha256(pairing_token.encode()).hexdigest(),
+        timedelta(minutes=10),
+        pairing_type=PairingType.NEW_SCREEN,
+    )
+    session.mark_as_connecting()
     session.expires_at = utc_now() - timedelta(seconds=1)
     pairing_session_repo.get_by_id.return_value = session
 

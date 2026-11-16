@@ -1,4 +1,3 @@
-
 """Approve a pending screen pairing request."""
 
 import hashlib
@@ -37,9 +36,7 @@ class ApproveScreenPairingSessionUseCase:
     async def __call__(
         self, command: ApproveScreenPairingSessionCommand
     ) -> ApproveScreenPairingSessionResult:
-        token_hash = hashlib.sha256(
-            command.pairing_token.encode("utf-8")
-        ).hexdigest()
+        token_hash = hashlib.sha256(command.pairing_token.encode("utf-8")).hexdigest()
 
         session = await self._pairing_session_repository.get_by_token_hash(
             token_hash,
@@ -64,7 +61,7 @@ class ApproveScreenPairingSessionUseCase:
         paired_at = updated.paired_at
         pairing_type = updated.pairing_type
 
-        if paired_at is None or pairing_type is None:
+        if pairing_type is None:
             raise PairingSessionAlreadyCompletedError()
 
         return ApproveScreenPairingSessionResult(
@@ -103,7 +100,7 @@ class ApproveScreenPairingSessionUseCase:
                 code="SCREEN_ID_NOT_ALLOWED",
             )
 
-        session.mark_as_paired()
+        session.mark_as_connecting()
 
     async def _approve_existing_screen(
         self,
@@ -128,6 +125,8 @@ class ApproveScreenPairingSessionUseCase:
         if not screen.is_active:
             raise PairingScreenNotEligibleError()
 
+        session.mark_as_connecting(screen_id=screen.id)
+
         active_credential = (
             await self._screen_credential_repository.get_active_credential_by_screen(
                 screen.id,
@@ -137,5 +136,3 @@ class ApproveScreenPairingSessionUseCase:
         if active_credential is not None:
             active_credential.revoke()
             await self._screen_credential_repository.update(active_credential)
-
-        session.mark_as_paired(screen_id=screen.id)

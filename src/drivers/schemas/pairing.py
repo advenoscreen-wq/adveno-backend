@@ -45,7 +45,7 @@ class ApproveScreenPairingSessionResponse(BaseModel):
     pairing_type: PairingType
     status: PairingSessionStatus
     screen_id: UUID | None
-    paired_at: datetime
+    paired_at: datetime | None
 
 
 class CreatePairedScreenRequest(BaseModel):
@@ -66,11 +66,3 @@ class CreatePairedScreenResponse(BaseModel):
 class IssuePairedScreenCredentialResponse(BaseModel):
     screen_id: UUID
     credential: str
-
-
-class PairingCompletionResponse(BaseModel):
-    session_id: UUID
-    status: PairingSessionStatus
-    screen_id: UUID | None
-    paired_at: datetime | None
-    completed: bool

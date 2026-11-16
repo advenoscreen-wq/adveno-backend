@@ -36,7 +36,7 @@ class ApproveScreenPairingSessionResult:
     pairing_type: PairingType
     status: PairingSessionStatus
     screen_id: UUID | None
-    paired_at: datetime
+    paired_at: datetime | None
 
 
 @dataclass(frozen=True)
@@ -51,12 +51,3 @@ class CreatePairedScreenResult:
 class IssuePairedScreenCredentialResult:
     screen_id: UUID
     credential: str
-
-
-@dataclass(frozen=True)
-class CheckPairingCompletionResult:
-    session_id: UUID
-    status: PairingSessionStatus
-    screen_id: UUID | None
-    paired_at: datetime | None
-    completed: bool

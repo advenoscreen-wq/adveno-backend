@@ -6,7 +6,6 @@ from fastapi import APIRouter, Header, status
 
 from application.use_cases.pairing.commands import (
     ApproveScreenPairingSessionCommand,
-    CheckPairingCompletionCommand,
     CreatePairedScreenCommand,
     CreateScreenPairingSessionCommand,
     GetScreenPairingSessionStatusCommand,
@@ -16,7 +15,6 @@ from application.use_cases.pairing.commands import (
 from drivers.routers.dependencies import CurrentUser
 from drivers.routers.pairing.dependencies import (
     ApproveScreenPairingSession,
-    CheckPairingCompletion,
     CreatePairedScreen,
     CreateScreenPairingSession,
     GetScreenPairingSessionStatus,
@@ -31,7 +29,6 @@ from drivers.schemas.pairing import (
     CreateScreenPairingSessionRequest,
     CreateScreenPairingSessionResponse,
     IssuePairedScreenCredentialResponse,
-    PairingCompletionResponse,
     ScreenPairingSessionStatusResponse,
     VerifyScreenPairingSessionResponse,
 )
@@ -48,9 +45,7 @@ async def create_screen_pairing_session(
     body: CreateScreenPairingSessionRequest,
     use_case: CreateScreenPairingSession,
 ) -> CreateScreenPairingSessionResponse:
-    result = await use_case(
-        CreateScreenPairingSessionCommand(pairing_type=body.pairing_type)
-    )
+    result = await use_case(CreateScreenPairingSessionCommand(pairing_type=body.pairing_type))
     return CreateScreenPairingSessionResponse(
         session_id=result.session_id,
         pairing_token=result.pairing_token,
@@ -64,9 +59,7 @@ async def verify_screen_pairing_session(
     use_case: VerifyScreenPairingSession,
     pairing_token: str = Header(alias="X-Pairing-Token"),
 ) -> VerifyScreenPairingSessionResponse:
-    result = await use_case(
-        VerifyScreenPairingSessionCommand(pairing_token=pairing_token)
-    )
+    result = await use_case(VerifyScreenPairingSessionCommand(pairing_token=pairing_token))
     return VerifyScreenPairingSessionResponse(
         session_id=result.session_id,
         status=result.status,
@@ -149,21 +142,6 @@ async def issue_paired_screen_credential(
     return IssuePairedScreenCredentialResponse(
         screen_id=result.screen_id,
         credential=result.credential,
-    )
-
-
-@router.get("/sessions/completion", response_model=PairingCompletionResponse)
-async def check_pairing_completion(
-    use_case: CheckPairingCompletion,
-    pairing_token: str = Header(alias="X-Pairing-Token"),
-) -> PairingCompletionResponse:
-    result = await use_case(CheckPairingCompletionCommand(pairing_token=pairing_token))
-    return PairingCompletionResponse(
-        session_id=result.session_id,
-        status=result.status,
-        screen_id=result.screen_id,
-        paired_at=result.paired_at,
-        completed=result.completed,
     )
 
 

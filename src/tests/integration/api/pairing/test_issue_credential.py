@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.value_object import PairingType
-from drivers.database.models.entities import ScreenCredentialModel
+from drivers.database.models.entities import ScreenCredentialModel, ScreenPairingSessionModel
 
 pytestmark = pytest.mark.integration
 AUTH_HEADERS = {"Authorization": "Bearer valid-access-token"}
@@ -46,6 +46,12 @@ async def test_credential_endpoint_issues_one_active_credential_for_registered_s
     assert response.status_code == 200
     credential = response.json()["credential"]
     assert response.json()["screen_id"] == str(screen_id)
+    session = await integration_session.get(
+        ScreenPairingSessionModel, UUID(created.json()["session_id"])
+    )
+    assert session is not None
+    assert session.status == "PAIRED"
+    assert session.paired_at is not None
     stored = await integration_session.scalar(
         select(ScreenCredentialModel).where(
             ScreenCredentialModel.screen_id == screen_id,

@@ -59,7 +59,12 @@ class SqlAlchemyScreenPairingSessionRepository:
         model = await self.session.scalar(
             select(ScreenPairingSessionModel).where(
                 ScreenPairingSessionModel.token_hash == token_hash,
-                ScreenPairingSessionModel.status == PairingSessionStatus.PENDING.value,
+                ScreenPairingSessionModel.status.in_(
+                    (
+                        PairingSessionStatus.PENDING.value,
+                        PairingSessionStatus.CONNECTING.value,
+                    )
+                ),
                 ScreenPairingSessionModel.paired_at.is_(None),
                 ScreenPairingSessionModel.expires_at > check_at,
             )

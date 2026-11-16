@@ -35,7 +35,7 @@ class PairingSessionAlreadyCompletedError(AppError):
 class PairingSessionNotPairedError(AppError):
     def __init__(self) -> None:
         super().__init__(
-            "Pairing session must be paired before creating a screen.",
+            "Pairing session must be connecting before it can be completed.",
             code="PAIRING_SESSION_NOT_PAIRED",
             status_code=409,
         )
@@ -48,8 +48,6 @@ class PairingScreenAlreadyCreatedError(AppError):
             code="PAIRING_SCREEN_ALREADY_CREATED",
             status_code=409,
         )
-
-
 
 
 class PairingApprovalValidationError(AppError):

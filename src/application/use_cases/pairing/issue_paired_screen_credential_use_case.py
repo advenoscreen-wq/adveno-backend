@@ -5,6 +5,7 @@ import hmac
 import secrets
 
 from application.exceptions.pairing import (
+    PairingSessionExpiredError,
     PairingSessionNotFoundError,
     PairingSessionNotPairedError,
 )
@@ -38,10 +39,18 @@ class IssuePairedScreenCredentialUseCase:
         )
         if session is None or not hmac.compare_digest(session.token_hash, token_hash):
             raise PairingSessionNotFoundError()
+        if session.status is PairingSessionStatus.EXPIRED or (
+            session.status in (PairingSessionStatus.PENDING, PairingSessionStatus.CONNECTING)
+            and session.is_expired()
+        ):
+            raise PairingSessionExpiredError()
         if (
-            session.status is not PairingSessionStatus.PAIRED
+            session.status
+            not in (
+                PairingSessionStatus.CONNECTING,
+                PairingSessionStatus.PAIRED,
+            )
             or session.screen_id is None
-            or session.paired_at is None
         ):
             raise PairingSessionNotPairedError()
 
@@ -63,6 +72,9 @@ class IssuePairedScreenCredentialUseCase:
                 credential_hash=credential_hash,
             )
         )
+        if session.status is PairingSessionStatus.CONNECTING:
+            session.mark_as_paired()
+            await self._pairing_session_repository.update(session)
         return IssuePairedScreenCredentialResult(
             screen_id=session.screen_id,
             credential=raw_credential,

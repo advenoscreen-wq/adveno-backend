@@ -11,9 +11,6 @@ from application.use_cases.auth.refresh_token_use_case import RefreshTokenUseCas
 from application.use_cases.pairing.approve_screen_pairing_session_use_case import (
     ApproveScreenPairingSessionUseCase,
 )
-from application.use_cases.pairing.check_pairing_completion_use_case import (
-    CheckPairingCompletionUseCase,
-)
 from application.use_cases.pairing.create_paired_screen_use_case import (
     CreatePairedScreenUseCase,
 )
@@ -169,17 +166,6 @@ def approve_screen_pairing_session_use_case(
     return ApproveScreenPairingSessionUseCase(
         pairing_session_repository=pairing_session_repo,
         screen_repository=screen_repo,
-        screen_credential_repository=screen_credential_repo,
-    )
-
-
-@pytest.fixture
-def check_pairing_completion_use_case(
-    pairing_session_repo: Mock,
-    screen_credential_repo: Mock,
-) -> CheckPairingCompletionUseCase:
-    return CheckPairingCompletionUseCase(
-        pairing_session_repository=pairing_session_repo,
         screen_credential_repository=screen_credential_repo,
     )
 

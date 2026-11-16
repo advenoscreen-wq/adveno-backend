@@ -24,7 +24,7 @@ from domain.value_object import PairingSessionStatus, PairingType, ScreenStatus
 
 
 @pytest.mark.asyncio
-async def test_new_screen_approval_pairs_session_without_creating_screen(
+async def test_new_screen_approval_marks_connecting_without_creating_screen(
     approve_screen_pairing_session_use_case: ApproveScreenPairingSessionUseCase,
     pairing_session_repo: Mock,
     screen_repo: Mock,
@@ -46,17 +46,17 @@ async def test_new_screen_approval_pairs_session_without_creating_screen(
         )
     )
 
-    assert result.status is PairingSessionStatus.PAIRED
-    assert result.paired_at is not None
+    assert result.status is PairingSessionStatus.CONNECTING
+    assert result.paired_at is None
     assert result.screen_id is None
-    assert session.paired_at is not None
+    assert session.paired_at is None
     screen_repo.save.assert_not_awaited()
     screen_credential_repo.get_active_credential_by_screen.assert_not_awaited()
     screen_credential_repo.save.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_reconnect_approval_assigns_owned_active_screen(
+async def test_reconnect_approval_marks_connecting_and_revokes_active_credential(
     approve_screen_pairing_session_use_case: ApproveScreenPairingSessionUseCase,
     pairing_session_repo: Mock,
     screen_repo: Mock,
@@ -87,9 +87,10 @@ async def test_reconnect_approval_assigns_owned_active_screen(
         )
     )
 
-    assert result.status is PairingSessionStatus.PAIRED
-    assert result.paired_at is not None
+    assert result.status is PairingSessionStatus.CONNECTING
+    assert result.paired_at is None
     assert result.screen_id == screen.id
+    assert session.screen_id == screen.id
     screen_repo.get_by_id.assert_awaited_once_with(screen.id, user_id=user_id)
     assert old_credential.revoked_at is not None
     screen_credential_repo.update.assert_awaited_once_with(old_credential)
@@ -187,6 +188,8 @@ async def test_approval_rejects_already_paired_session(
         timedelta(minutes=10),
         pairing_type=PairingType.NEW_SCREEN,
     )
+    session.mark_as_connecting()
+    session.assign_new_screen(uuid4())
     session.mark_as_paired()
     pairing_session_repo.get_by_token_hash.return_value = session
 

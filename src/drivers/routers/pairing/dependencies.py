@@ -15,9 +15,6 @@ from adapters.repositories.screen_repository import SqlAlchemyScreenRepository
 from application.use_cases.pairing.approve_screen_pairing_session_use_case import (
     ApproveScreenPairingSessionUseCase,
 )
-from application.use_cases.pairing.check_pairing_completion_use_case import (
-    CheckPairingCompletionUseCase,
-)
 from application.use_cases.pairing.create_paired_screen_use_case import (
     CreatePairedScreenUseCase,
 )
@@ -119,19 +116,6 @@ def get_issue_paired_screen_credential_use_case(
     )
 
 
-def get_check_pairing_completion_use_case(
-    pairing_session_repository: ScreenPairingSessionRepositoryDependency,
-    credential_repository: Annotated[
-        ScreenCredentialRepository, Depends(get_screen_credential_repository)
-    ],
-) -> CheckPairingCompletionUseCase:
-    """Build the pairing completion verification use case."""
-    return CheckPairingCompletionUseCase(
-        pairing_session_repository=pairing_session_repository,
-        screen_credential_repository=credential_repository,
-    )
-
-
 def get_screen_pairing_session_status_use_case(
     repository: ScreenPairingSessionRepositoryDependency,
 ) -> GetScreenPairingSessionStatusUseCase:
@@ -161,10 +145,6 @@ CreatePairedScreen = Annotated[
 IssuePairedScreenCredential = Annotated[
     IssuePairedScreenCredentialUseCase,
     Depends(get_issue_paired_screen_credential_use_case),
-]
-CheckPairingCompletion = Annotated[
-    CheckPairingCompletionUseCase,
-    Depends(get_check_pairing_completion_use_case),
 ]
 GetScreenPairingSessionStatus = Annotated[
     GetScreenPairingSessionStatusUseCase,

@@ -35,7 +35,7 @@ async def test_creates_screen_and_assigns_it_to_paired_new_screen_session(
         timedelta(minutes=10),
         pairing_type=PairingType.NEW_SCREEN,
     )
-    session.mark_as_paired()
+    session.mark_as_connecting()
     pairing_session_repo.get_by_id.return_value = session
     user_id = uuid4()
 
@@ -57,6 +57,8 @@ async def test_creates_screen_and_assigns_it_to_paired_new_screen_session(
     assert screen.app_version == "1.2.3"
     assert result.screen_code == screen.screen_code
     assert session.screen_id == screen.id
+    assert session.status is PairingSessionStatus.PAIRED
+    assert session.paired_at is not None
     screen_credential_repo.save.assert_awaited_once()
     stored_credential = screen_credential_repo.save.await_args.args[0]
     assert (
@@ -79,8 +81,9 @@ async def test_does_not_create_second_screen_for_pairing_session_with_screen_id(
         timedelta(minutes=10),
         pairing_type=PairingType.NEW_SCREEN,
     )
-    session.mark_as_paired()
+    session.mark_as_connecting()
     session.assign_new_screen(uuid4())
+    session.mark_as_paired()
     pairing_session_repo.get_by_id.return_value = session
 
     with pytest.raises(PairingScreenAlreadyCreatedError):
@@ -134,7 +137,7 @@ async def test_rejects_session_id_and_pairing_token_that_do_not_match(
         timedelta(minutes=10),
         pairing_type=PairingType.NEW_SCREEN,
     )
-    session.mark_as_paired()
+    session.mark_as_connecting()
     pairing_session_repo.get_by_id.return_value = session
 
     with pytest.raises(PairingSessionNotFoundError):
@@ -213,9 +216,8 @@ async def test_rejects_reconnect_session_for_new_screen_creation(
         hashlib.sha256(token.encode()).hexdigest(),
         timedelta(minutes=10),
         pairing_type=PairingType.RECONNECT_EXISTING,
-        screen_id=existing_screen_id,
     )
-    session.mark_as_paired(screen_id=existing_screen_id)
+    session.mark_as_connecting(screen_id=existing_screen_id)
     pairing_session_repo.get_by_id.return_value = session
 
     with pytest.raises(PairingApprovalValidationError) as error:

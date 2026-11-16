@@ -43,8 +43,3 @@ class CreatePairedScreenCommand:
 class IssuePairedScreenCredentialCommand:
     session_id: UUID
     pairing_token: str
-
-
-@dataclass(frozen=True)
-class CheckPairingCompletionCommand:
-    pairing_token: str

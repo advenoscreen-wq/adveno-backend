@@ -25,6 +25,9 @@ class GetScreenPairingSessionStatusUseCase:
             raise PairingSessionNotFoundError()
 
         status = session.status
-        if status is PairingSessionStatus.PENDING and session.is_expired():
+        if (
+            status in (PairingSessionStatus.PENDING, PairingSessionStatus.CONNECTING)
+            and session.is_expired()
+        ):
             status = PairingSessionStatus.EXPIRED
         return GetScreenPairingSessionStatusResult(status=status)
