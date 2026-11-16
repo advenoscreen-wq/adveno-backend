@@ -1,5 +1,6 @@
 """Unit tests for user role and activation behavior."""
 
+from typing import cast
 from uuid import uuid4
 
 import pytest
@@ -29,4 +30,4 @@ def test_user_can_be_deactivated_and_reactivated() -> None:
 
 def test_user_rejects_unsupported_role() -> None:
     with pytest.raises(DomainError, match="role must be ADMIN or USER"):
-        User(id=uuid4(), role="OWNER")
+        User(id=uuid4(), role=cast(UserRole, "OWNER"))

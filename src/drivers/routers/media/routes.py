@@ -28,6 +28,7 @@ from drivers.schemas.media import (
     MediaAssetResponse,
     RequestMediaUploadUrlRequest,
     RequestMediaUploadUrlResponse,
+    ScreenSyncRevision,
     UpdateMediaAndSyncRequest,
     UpdateMediaAndSyncResponse,
 )
@@ -174,7 +175,10 @@ async def update_media_and_sync(
             object_path=result.media.storage_path,
         ),
         screen_sync=[
-            {"screen_id": state.screen_id, "desired_revision": state.desired_revision}
+            ScreenSyncRevision(
+                screen_id=state.screen_id,
+                desired_revision=state.desired_revision,
+            )
             for state in result.sync_states
         ],
     )

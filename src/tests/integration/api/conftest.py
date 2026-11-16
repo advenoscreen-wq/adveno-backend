@@ -7,6 +7,7 @@ from uuid import UUID
 import httpx
 import pytest
 import pytest_asyncio
+from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from testcontainers.community.postgres import PostgresContainer
@@ -80,7 +81,7 @@ async def api_app(
     integration_session: AsyncSession,
     oauth_provider: Mock,
     storage_service: Mock,
-) -> AsyncIterator[object]:
+) -> AsyncIterator[FastAPI]:
     """Create the application using real test databases and mocked OAuth API."""
     database_url = postgres_container.get_connection_url().replace(
         "postgresql+psycopg2://",
@@ -116,7 +117,7 @@ async def api_app(
 
 
 @pytest_asyncio.fixture
-async def client(api_app: object) -> AsyncIterator[httpx.AsyncClient]:
+async def client(api_app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
     """Create an async client for the shared integration application."""
     transport = httpx.ASGITransport(app=api_app)
     async with httpx.AsyncClient(

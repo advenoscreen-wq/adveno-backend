@@ -32,21 +32,25 @@ class SqlAlchemyScreenSyncStateRepository:
         return to_sync_state(model) if model else None
 
     async def increment_desired_revision(self, screen_id: UUID) -> ScreenSyncState:
-        statement = insert(ScreenSyncStateModel).values(
-            screen_id=screen_id,
-            desired_revision=1,
-            applied_revision=0,
-            sync_status="PENDING",
+        statement = (
+            insert(ScreenSyncStateModel)
+            .values(
+                screen_id=screen_id,
+                desired_revision=1,
+                applied_revision=0,
+                sync_status="PENDING",
+            )
+            .on_conflict_do_update(
+                index_elements=[ScreenSyncStateModel.screen_id],
+                set_={
+                    "desired_revision": ScreenSyncStateModel.desired_revision + 1,
+                    "sync_status": "PENDING",
+                    "last_error": None,
+                    "updated_at": func.now(),
+                },
+            )
+            .returning(ScreenSyncStateModel)
         )
-        statement = statement.on_conflict_do_update(
-            index_elements=[ScreenSyncStateModel.screen_id],
-            set_={
-                "desired_revision": ScreenSyncStateModel.desired_revision + 1,
-                "sync_status": "PENDING",
-                "last_error": None,
-                "updated_at": func.now(),
-            },
-        ).returning(ScreenSyncStateModel)
         model = await self.session.scalar(statement)
         if model is None:
             raise PersistenceError("screen sync state could not be incremented")

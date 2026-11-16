@@ -1,5 +1,7 @@
 """Unit tests for domain enum values."""
 
+from enum import StrEnum
+
 import pytest
 
 from domain.value_object import (
@@ -25,7 +27,7 @@ from domain.value_object import (
         (UserRole, "ADMIN"),
     ],
 )
-def test_domain_enum_accepts_declared_string_value(value_type, value: str) -> None:
+def test_domain_enum_accepts_declared_string_value(value_type: type[StrEnum], value: str) -> None:
     assert value_type(value).value == value
 
 

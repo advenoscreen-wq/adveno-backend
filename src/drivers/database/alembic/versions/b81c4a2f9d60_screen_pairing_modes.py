@@ -5,6 +5,7 @@ Revises: 65a4d712416f
 """
 
 from collections.abc import Sequence
+from uuid import UUID
 
 import sqlalchemy as sa
 from alembic import op
@@ -17,7 +18,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     bind = op.get_bind()
-    duplicates = (
+    duplicates: Sequence[UUID] = (
         bind.execute(
             sa.text(
                 "SELECT screen_id FROM screen_credentials "

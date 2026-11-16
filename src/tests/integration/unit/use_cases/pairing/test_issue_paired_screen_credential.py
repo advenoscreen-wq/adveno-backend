@@ -39,6 +39,7 @@ async def test_issue_credential_revokes_old_credential_and_completes_reconnect(
 ) -> None:
     token = "credential-pairing-token"
     session = _connecting_reconnect_session(token)
+    assert session.screen_id is not None
     old_credential = ScreenCredential(
         screen_id=session.screen_id,
         credential_hash="old-credential-hash",

@@ -105,14 +105,11 @@ class UpdateMediaAndSyncRequest(BaseModel):
             self.duration_seconds,
         )
         if self.is_replaced:
-            if any(
-                value is None
-                for value in (
-                    self.media_type,
-                    self.mime_type,
-                    self.storage_path,
-                    self.file_size,
-                )
+            if (
+                self.media_type is None
+                or self.mime_type is None
+                or self.storage_path is None
+                or self.file_size is None
             ):
                 raise ValueError("replacement requires media file metadata")
             prefix = "image/" if self.media_type is MediaType.IMAGE else "video/"

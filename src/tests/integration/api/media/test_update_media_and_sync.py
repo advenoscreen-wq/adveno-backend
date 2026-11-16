@@ -1,5 +1,6 @@
 """Integration tests for media updates and playlist screen synchronization."""
 
+from typing import cast
 from uuid import UUID, uuid4
 
 import httpx
@@ -37,7 +38,7 @@ async def create_media(client: httpx.AsyncClient) -> dict[str, object]:
         },
     )
     assert response.status_code == 201
-    return response.json()
+    return cast(dict[str, object], response.json())
 
 
 async def assign_media_to_screens(

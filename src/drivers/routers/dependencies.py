@@ -1,7 +1,7 @@
 """Dependencies shared by multiple HTTP route groups."""
 
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import Depends, Request
@@ -22,7 +22,7 @@ from drivers.database.database import check_database, session_dependency
 
 def get_session_factory(request: Request) -> async_sessionmaker[AsyncSession]:
     """Return the database factory configured by the application."""
-    return request.app.state.session_factory
+    return cast(async_sessionmaker[AsyncSession], request.app.state.session_factory)
 
 
 @lru_cache(maxsize=8)
