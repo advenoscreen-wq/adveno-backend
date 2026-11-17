@@ -2,13 +2,104 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 
 from drivers.routers.dependencies import CurrentUser
-from drivers.routers.screens.dependencies import UpdateScreen
-from drivers.schemas.screens import UpdateScreenRequest, UpdateScreenResponse
+from drivers.routers.screens.dependencies import (
+    AssignPlaylist,
+    GetScreen,
+    ListScreens,
+    UpdateScreen,
+)
+from drivers.schemas.common import PaginationResponse
+from drivers.schemas.playlists import PlaylistResponse
+from drivers.schemas.screens import (
+    AssignPlaylistRequest,
+    ScreenListItemResponse,
+    ScreenPlaylistAssignmentResponse,
+    ScreenResponse,
+    UpdateScreenRequest,
+    UpdateScreenResponse,
+)
 
 router = APIRouter(prefix="/screens", tags=["screens"])
+
+
+@router.get(
+    "",
+    response_model=PaginationResponse[ScreenListItemResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_screens(
+    current_user: CurrentUser,
+    use_case: ListScreens,
+    filter_by_name: str | None = Query(default=None, max_length=255),
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> PaginationResponse[ScreenListItemResponse]:
+    result = await use_case(
+        user_id=current_user.id,
+        filter_by_name=filter_by_name,
+        page=page,
+        limit=limit,
+    )
+    return PaginationResponse[ScreenListItemResponse](
+        items=[
+            ScreenListItemResponse.model_validate(screen, from_attributes=True)
+            for screen in result.items
+        ],
+        total_pages=result.total_pages,
+        total_items=result.total_items,
+        has_next=result.has_next,
+        has_prev=result.has_prev,
+        limit=result.limit,
+        page=result.page,
+    )
+
+
+@router.get("/{screen_id}", response_model=ScreenResponse, status_code=status.HTTP_200_OK)
+async def get_screen(
+    screen_id: UUID,
+    current_user: CurrentUser,
+    use_case: GetScreen,
+) -> ScreenResponse:
+    result = await use_case(screen_id=screen_id, user_id=current_user.id)
+    return ScreenResponse(
+        id=result.screen.id,
+        screen_code=result.screen.screen_code,
+        name=result.screen.name,
+        status=result.screen.status,
+        updated_at=result.screen.updated_at,
+        assigned_playlist=(
+            PlaylistResponse.from_entity(result.assigned_playlist)
+            if result.assigned_playlist is not None
+            else None
+        ),
+    )
+
+
+@router.put(
+    "/{screen_id}/playlist",
+    response_model=ScreenPlaylistAssignmentResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def assign_playlist(
+    screen_id: UUID,
+    body: AssignPlaylistRequest,
+    current_user: CurrentUser,
+    use_case: AssignPlaylist,
+) -> ScreenPlaylistAssignmentResponse:
+    assignment = await use_case(
+        screen_id=screen_id,
+        playlist_id=body.playlist_id,
+        user_id=current_user.id,
+    )
+    return ScreenPlaylistAssignmentResponse(
+        id=assignment.id,
+        screen_id=assignment.screen_id,
+        playlist_id=assignment.playlist_id,
+        assigned_at=assignment.assigned_at,
+    )
 
 
 @router.patch("/{screen_id}", response_model=UpdateScreenResponse, status_code=status.HTTP_200_OK)

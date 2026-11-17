@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -116,6 +116,19 @@ class SqlAlchemyPlaylistRepository:
         apply_playlist(playlist, model)
         await flush_session(self.session, "playlist update")
         return to_playlist(model)
+
+    async def increment_versions(self, playlist_ids: list[UUID]) -> None:
+        if not playlist_ids:
+            return
+        await self.session.execute(
+            update(PlaylistModel)
+            .where(PlaylistModel.id.in_(playlist_ids))
+            .values(
+                version=PlaylistModel.version + 1,
+                updated_at=func.now(),
+            )
+        )
+        await flush_session(self.session, "playlist version increment")
 
     async def delete(self, playlist_id: UUID) -> None:
         result = cast(

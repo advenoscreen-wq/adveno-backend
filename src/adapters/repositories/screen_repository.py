@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.repositories.common import flush_session, log_repository_operations
@@ -49,14 +49,31 @@ class SqlAlchemyScreenRepository:
         if user_id is not None:
             statement = statement.where(ScreenModel.user_id == user_id)
         result = await self.session.scalars(
-            statement.order_by(ScreenModel.created_at).offset(offset).limit(limit)
+            statement.order_by(ScreenModel.created_at, ScreenModel.id).offset(offset).limit(limit)
         )
         return [to_screen(model) for model in result]
 
     async def list_by_user_id(
-        self, user_id: UUID, *, offset: int = 0, limit: int = 100
+        self,
+        user_id: UUID,
+        *,
+        filter_by_name: str | None = None,
+        offset: int = 0,
+        limit: int = 100,
     ) -> list[Screen]:
-        return await self.list_all(user_id=user_id, offset=offset, limit=limit)
+        statement = select(ScreenModel).where(ScreenModel.user_id == user_id)
+        if filter_by_name:
+            statement = statement.where(ScreenModel.name.ilike(f"%{filter_by_name}%"))
+        result = await self.session.scalars(
+            statement.order_by(ScreenModel.created_at, ScreenModel.id).offset(offset).limit(limit)
+        )
+        return [to_screen(model) for model in result]
+
+    async def count_by_user_id(self, user_id: UUID, *, filter_by_name: str | None = None) -> int:
+        statement = select(func.count(ScreenModel.id)).where(ScreenModel.user_id == user_id)
+        if filter_by_name:
+            statement = statement.where(ScreenModel.name.ilike(f"%{filter_by_name}%"))
+        return int(await self.session.scalar(statement) or 0)
 
     async def save(self, screen: Screen) -> Screen:
         model = ScreenModel()

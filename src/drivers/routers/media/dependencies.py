@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.repositories.media_asset_repository import SqlAlchemyMediaAssetRepository
 from adapters.repositories.playlist_item_repository import SqlAlchemyPlaylistItemRepository
+from adapters.repositories.playlist_repository import SqlAlchemyPlaylistRepository
 from adapters.repositories.screen_playlist_assignment_repository import (
     SqlAlchemyScreenPlaylistAssignmentRepository,
 )
@@ -31,6 +32,7 @@ from drivers.database.database import session_dependency
 from drivers.routers.dependencies import SettingsDependency
 from ports.repositories.media_asset_repository import MediaAssetRepository
 from ports.repositories.playlist_item_repository import PlaylistItemRepository
+from ports.repositories.playlist_repository import PlaylistRepository
 from ports.repositories.screen_playlist_assignment_repository import (
     ScreenPlaylistAssignmentRepository,
 )
@@ -173,6 +175,13 @@ def get_playlist_item_repository(
     return SqlAlchemyPlaylistItemRepository(session)
 
 
+def get_playlist_repository(
+    session: Annotated[AsyncSession, Depends(session_dependency)],
+) -> PlaylistRepository:
+    """Build the request-scoped playlist repository."""
+    return SqlAlchemyPlaylistRepository(session)
+
+
 def get_screen_playlist_assignment_repository(
     session: Annotated[AsyncSession, Depends(session_dependency)],
 ) -> ScreenPlaylistAssignmentRepository:
@@ -193,6 +202,10 @@ def get_update_media_and_sync_use_case(
         PlaylistItemRepository,
         Depends(get_playlist_item_repository),
     ],
+    playlist_repository: Annotated[
+        PlaylistRepository,
+        Depends(get_playlist_repository),
+    ],
     assignment_repository: Annotated[
         ScreenPlaylistAssignmentRepository,
         Depends(get_screen_playlist_assignment_repository),
@@ -208,6 +221,7 @@ def get_update_media_and_sync_use_case(
     return UpdateMediaAndSyncUseCase(
         media_repository=media_repository,
         playlist_item_repository=playlist_item_repository,
+        playlist_repository=playlist_repository,
         assignment_repository=assignment_repository,
         sync_state_repository=sync_state_repository,
         storage_service=storage_service,

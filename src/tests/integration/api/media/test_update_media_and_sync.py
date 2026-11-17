@@ -15,6 +15,7 @@ from adapters.repositories.domain_repositories import (
     SqlAlchemyScreenRepository,
 )
 from domain import Playlist, PlaylistItem, Screen, ScreenPlaylistAssignment
+from domain.value_object import MediaType
 from drivers.database.models.screen_sync_state import ScreenSyncStateModel
 
 pytestmark = pytest.mark.integration
@@ -133,6 +134,97 @@ async def test_replacement_updates_file_fields_and_syncs_every_assigned_screen(
     }
 
 
+async def test_video_replacement_updates_playlist_item_durations_and_versions(
+    client: httpx.AsyncClient,
+    integration_session: AsyncSession,
+) -> None:
+    original = await create_media(client)
+    playlist = await SqlAlchemyPlaylistRepository(integration_session).save(
+        Playlist(name="Video playlist", user_id=USER_ID)
+    )
+    await SqlAlchemyPlaylistItemRepository(integration_session).save(
+        PlaylistItem(
+            playlist_id=playlist.id,
+            media_asset_id=UUID(str(original["id"])),
+            position=1,
+            duration_seconds=10,
+        )
+    )
+    screen = await SqlAlchemyScreenRepository(integration_session).save(
+        Screen(user_id=USER_ID, name="Video screen")
+    )
+    await SqlAlchemyScreenPlaylistAssignmentRepository(integration_session).save(
+        ScreenPlaylistAssignment(screen_id=screen.id, playlist_id=playlist.id)
+    )
+    await integration_session.commit()
+
+    response = await client.put(
+        f"/api/v1/media/{original['id']}",
+        headers=AUTH_HEADERS,
+        json={
+            "is_replaced": True,
+            "name": "Updated video",
+            "media_type": MediaType.VIDEO.value,
+            "mime_type": "video/mp4",
+            "storage_path": f"users/{USER_ID}/{uuid4().hex}/video.mp4",
+            "file_size": 4096,
+            "duration_seconds": 45,
+        },
+    )
+
+    assert response.status_code == 200
+    items = await SqlAlchemyPlaylistItemRepository(integration_session).list_by_media_asset_id(
+        UUID(str(original["id"]))
+    )
+    assert len(items) == 1
+    assert items[0].duration_seconds == 45
+    updated_playlist = await SqlAlchemyPlaylistRepository(integration_session).get_by_id(
+        playlist.id,
+        user_id=USER_ID,
+    )
+    assert updated_playlist is not None
+    assert updated_playlist.version == playlist.version + 1
+
+
+async def test_image_replacement_preserves_playlist_item_duration(
+    client: httpx.AsyncClient,
+    integration_session: AsyncSession,
+) -> None:
+    original = await create_media(client)
+    playlist = await SqlAlchemyPlaylistRepository(integration_session).save(
+        Playlist(name="Image playlist", user_id=USER_ID)
+    )
+    await SqlAlchemyPlaylistItemRepository(integration_session).save(
+        PlaylistItem(
+            playlist_id=playlist.id,
+            media_asset_id=UUID(str(original["id"])),
+            position=1,
+            duration_seconds=20,
+        )
+    )
+    await integration_session.commit()
+
+    response = await client.put(
+        f"/api/v1/media/{original['id']}",
+        headers=AUTH_HEADERS,
+        json={
+            "is_replaced": True,
+            "name": "Updated image",
+            "media_type": MediaType.IMAGE.value,
+            "mime_type": "image/jpeg",
+            "storage_path": f"users/{USER_ID}/{uuid4().hex}/image.jpg",
+            "file_size": 2048,
+        },
+    )
+
+    assert response.status_code == 200
+    items = await SqlAlchemyPlaylistItemRepository(integration_session).list_by_media_asset_id(
+        UUID(str(original["id"]))
+    )
+    assert len(items) == 1
+    assert items[0].duration_seconds == 20
+
+
 async def test_update_rejects_replacement_without_file_metadata(
     client: httpx.AsyncClient,
 ) -> None:
@@ -141,6 +233,26 @@ async def test_update_rejects_replacement_without_file_metadata(
         f"/api/v1/media/{original['id']}",
         headers=AUTH_HEADERS,
         json={"is_replaced": True},
+    )
+
+    assert response.status_code == 422
+
+
+async def test_update_rejects_video_replacement_without_duration(
+    client: httpx.AsyncClient,
+) -> None:
+    original = await create_media(client)
+    response = await client.put(
+        f"/api/v1/media/{original['id']}",
+        headers=AUTH_HEADERS,
+        json={
+            "is_replaced": True,
+            "name": "Updated video",
+            "media_type": MediaType.VIDEO.value,
+            "mime_type": "video/mp4",
+            "storage_path": f"users/{USER_ID}/{uuid4().hex}/video.mp4",
+            "file_size": 4096,
+        },
     )
 
     assert response.status_code == 422

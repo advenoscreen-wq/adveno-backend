@@ -126,6 +126,8 @@ class UpdateMediaAndSyncRequest(BaseModel):
                 or self.file_size is None
             ):
                 raise ValueError("replacement requires media file metadata")
+            if self.media_type is MediaType.VIDEO and self.duration_seconds is None:
+                raise ValueError("video replacement requires duration_seconds")
             prefix = "image/" if self.media_type is MediaType.IMAGE else "video/"
             if (
                 not self.mime_type.lower().startswith(prefix)

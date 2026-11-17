@@ -20,8 +20,17 @@ class ScreenRepository(Protocol):
     ) -> list[Screen]: ...
 
     async def list_by_user_id(
-        self, user_id: UUID, *, offset: int = 0, limit: int = 100
+        self,
+        user_id: UUID,
+        *,
+        filter_by_name: str | None = None,
+        offset: int = 0,
+        limit: int = 100,
     ) -> list[Screen]: ...
+
+    async def count_by_user_id(
+        self, user_id: UUID, *, filter_by_name: str | None = None
+    ) -> int: ...
 
     async def save(self, screen: Screen) -> Screen: ...
 

@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from domain.value_object import ScreenStatus
+from drivers.schemas.playlists import PlaylistResponse
 
 
 class UpdateScreenRequest(BaseModel):
@@ -28,3 +29,27 @@ class UpdateScreenResponse(BaseModel):
     name: str
     status: ScreenStatus
     updated_at: datetime
+
+
+class ScreenResponse(UpdateScreenResponse):
+    assigned_playlist: PlaylistResponse | None
+
+
+class ScreenListItemResponse(UpdateScreenResponse):
+    device_model: str | None
+    app_version: str | None
+    last_seen_at: datetime | None
+    last_successful_sync_at: datetime | None
+
+
+class AssignPlaylistRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    playlist_id: UUID
+
+
+class ScreenPlaylistAssignmentResponse(BaseModel):
+    id: UUID
+    screen_id: UUID
+    playlist_id: UUID
+    assigned_at: datetime

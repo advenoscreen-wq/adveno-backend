@@ -238,6 +238,12 @@ desired sync revision incremented so they can clear the deleted playlist.
 Returns `204 NO CONTENT`; an unknown or unowned playlist returns
 `404 PLAYLIST_NOT_FOUND`.
 
+### `GET /api/v1/screens`
+
+Lists the authenticated user's screens with pagination. Accepts `page`
+(default `1`), `limit` (default `20`, maximum `100`), and optional
+`filter_by_name` for case-insensitive partial matching.
+
 ### `PATCH /api/v1/screens/{screen_id}`
 
 Updates a screen's user-managed display name. Requires a valid Supabase access
@@ -249,6 +255,19 @@ remain managed by the TV/backend.
 
 **Response `200`:** the updated screen ID, screen code, name, status, and update
 timestamp. An unknown or another user's screen returns `404 SCREEN_NOT_FOUND`.
+
+### `GET /api/v1/screens/{screen_id}`
+
+Returns the screen and its active `assigned_playlist`, or `null` when no playlist
+is assigned. Requires authentication and screen ownership.
+
+### `PUT /api/v1/screens/{screen_id}/playlist`
+
+Assigns a playlist to an owned screen. Replacing an assignment preserves its
+history, and the screen's desired sync revision is incremented. Repeating the
+same assignment is idempotent.
+
+**Request:** `{"playlist_id": "uuid"}`
 
 ### `POST /api/v1/pairing/sessions`
 

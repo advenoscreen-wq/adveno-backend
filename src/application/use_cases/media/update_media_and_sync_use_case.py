@@ -14,6 +14,7 @@ from domain.entities.common import utc_now
 from domain.exceptions import PersistenceConflictError
 from ports.repositories.media_asset_repository import MediaAssetRepository
 from ports.repositories.playlist_item_repository import PlaylistItemRepository
+from ports.repositories.playlist_repository import PlaylistRepository
 from ports.repositories.screen_playlist_assignment_repository import (
     ScreenPlaylistAssignmentRepository,
 )
@@ -27,6 +28,7 @@ class UpdateMediaAndSyncUseCase:
         *,
         media_repository: MediaAssetRepository,
         playlist_item_repository: PlaylistItemRepository,
+        playlist_repository: PlaylistRepository,
         assignment_repository: ScreenPlaylistAssignmentRepository,
         sync_state_repository: ScreenSyncStateRepository,
         storage_service: StorageService,
@@ -34,6 +36,7 @@ class UpdateMediaAndSyncUseCase:
     ) -> None:
         self._media_repository = media_repository
         self._playlist_item_repository = playlist_item_repository
+        self._playlist_repository = playlist_repository
         self._assignment_repository = assignment_repository
         self._sync_state_repository = sync_state_repository
         self._storage_service = storage_service
@@ -56,6 +59,13 @@ class UpdateMediaAndSyncUseCase:
 
             playlist_items = await self._playlist_item_repository.list_by_media_asset_id(media.id)
             playlist_ids = list({item.playlist_id for item in playlist_items})
+            if command.is_replaced and media.media_type.value == "VIDEO":
+                if media.duration_seconds is None:
+                    raise InvalidMediaCreateRequestError()
+                for playlist_item in playlist_items:
+                    playlist_item.update_duration(media.duration_seconds)
+                    await self._playlist_item_repository.update(playlist_item)
+                await self._playlist_repository.increment_versions(playlist_ids)
             assignments = await self._assignment_repository.list_active_by_playlist_ids(
                 playlist_ids
             )
@@ -87,6 +97,8 @@ class UpdateMediaAndSyncUseCase:
             or command.storage_path is None
             or command.file_size is None
         ):
+            raise InvalidMediaCreateRequestError()
+        if command.media_type.value == "VIDEO" and command.duration_seconds is None:
             raise InvalidMediaCreateRequestError()
         storage_path = self._normalize_storage_path(
             command.storage_path,
