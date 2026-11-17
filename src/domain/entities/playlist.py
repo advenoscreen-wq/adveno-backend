@@ -58,6 +58,22 @@ class Playlist:
         self.items.sort(key=lambda current: current.position)
         self.increment_version()
 
+    def replace_items(self, selected_items: list[tuple[PlaylistItem, MediaAsset]]) -> None:
+        positions: set[int] = set()
+        replacement: list[PlaylistItem] = []
+        for item, media in selected_items:
+            if item.playlist_id != self.id:
+                raise DomainError("playlist item belongs to a different playlist")
+            if media.user_id != self.user_id:
+                raise DomainError("media asset belongs to a different user")
+            if item.position in positions:
+                raise DomainError("playlist item position must be unique")
+            media.validate_playlist_compatibility()
+            positions.add(item.position)
+            replacement.append(item)
+        self.items = sorted(replacement, key=lambda current: current.position)
+        self.increment_version()
+
     def remove_item(self, item_id: UUID) -> PlaylistItem:
         for index, item in enumerate(self.items):
             if item.id == item_id:

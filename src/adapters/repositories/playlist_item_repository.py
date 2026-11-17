@@ -62,6 +62,12 @@ class SqlAlchemyPlaylistItemRepository:
         )
         return [to_playlist_item(model) for model in result]
 
+    async def delete_by_playlist_id(self, playlist_id: UUID) -> None:
+        await self.session.execute(
+            delete(PlaylistItemModel).where(PlaylistItemModel.playlist_id == playlist_id)
+        )
+        await flush_session(self.session, "playlist items delete")
+
     async def save(self, item: PlaylistItem) -> PlaylistItem:
         await self._validate_ownership(item)
         model = PlaylistItemModel()

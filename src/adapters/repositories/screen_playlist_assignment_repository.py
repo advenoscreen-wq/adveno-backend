@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.repositories.common import flush_session, log_repository_operations
@@ -85,6 +85,14 @@ class SqlAlchemyScreenPlaylistAssignmentRepository:
             )
         )
         return [to_assignment(model) for model in result]
+
+    async def delete_by_playlist_id(self, playlist_id: UUID) -> None:
+        await self.session.execute(
+            delete(ScreenPlaylistAssignmentModel).where(
+                ScreenPlaylistAssignmentModel.playlist_id == playlist_id
+            )
+        )
+        await flush_session(self.session, "screen playlist assignments delete")
 
     async def save(self, assignment: ScreenPlaylistAssignment) -> ScreenPlaylistAssignment:
         await self._validate_ownership(assignment)

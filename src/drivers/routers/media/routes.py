@@ -53,8 +53,11 @@ async def list_media_assets(
         page=page,
         limit=limit,
     )
+    media_responses: list[MediaAssetResponse] = [
+        MediaAssetResponse.model_validate(item, from_attributes=True) for item in result.items
+    ]
     return PaginationResponse[MediaAssetResponse](
-        items=result.items,
+        items=media_responses,
         total_pages=result.total_pages,
         total_items=result.total_items,
         has_next=result.has_next,

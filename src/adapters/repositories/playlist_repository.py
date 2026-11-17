@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +17,7 @@ from adapters.repositories.mappers import (
 )
 from domain.entities.entities import (
     Playlist,
+    PlaylistItem,
 )
 from domain.exceptions import PersistenceError
 from drivers.database.models.entities import (
@@ -56,9 +57,46 @@ class SqlAlchemyPlaylistRepository:
         return [to_playlist(model) for model in result]
 
     async def list_by_user_id(
-        self, user_id: UUID, *, offset: int = 0, limit: int = 100
+        self,
+        user_id: UUID,
+        *,
+        filter_by_title: str | None = None,
+        offset: int = 0,
+        limit: int = 100,
     ) -> list[Playlist]:
-        return await self.list_all(user_id=user_id, offset=offset, limit=limit)
+        statement = select(PlaylistModel).where(PlaylistModel.user_id == user_id)
+        if filter_by_title:
+            pattern = f"%{filter_by_title}%"
+            statement = statement.where(
+                or_(PlaylistModel.name.ilike(pattern), PlaylistModel.description.ilike(pattern))
+            )
+        models = list(
+            await self.session.scalars(
+                statement.order_by(PlaylistModel.created_at, PlaylistModel.id)
+                .offset(offset)
+                .limit(limit)
+            )
+        )
+        if not models:
+            return []
+        items = await self.session.scalars(
+            select(PlaylistItemModel)
+            .where(PlaylistItemModel.playlist_id.in_([model.id for model in models]))
+            .order_by(PlaylistItemModel.playlist_id, PlaylistItemModel.position)
+        )
+        items_by_playlist: dict[UUID, list[PlaylistItem]] = {model.id: [] for model in models}
+        for item in items:
+            items_by_playlist[item.playlist_id].append(to_playlist_item(item))
+        return [to_playlist(model, items_by_playlist[model.id]) for model in models]
+
+    async def count_by_user_id(self, user_id: UUID, *, filter_by_title: str | None = None) -> int:
+        statement = select(func.count(PlaylistModel.id)).where(PlaylistModel.user_id == user_id)
+        if filter_by_title:
+            pattern = f"%{filter_by_title}%"
+            statement = statement.where(
+                or_(PlaylistModel.name.ilike(pattern), PlaylistModel.description.ilike(pattern))
+            )
+        return int(await self.session.scalar(statement) or 0)
 
     async def save(self, playlist: Playlist) -> Playlist:
         model = PlaylistModel()

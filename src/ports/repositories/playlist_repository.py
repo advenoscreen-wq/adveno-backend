@@ -18,8 +18,17 @@ class PlaylistRepository(Protocol):
     ) -> list[Playlist]: ...
 
     async def list_by_user_id(
-        self, user_id: UUID, *, offset: int = 0, limit: int = 100
+        self,
+        user_id: UUID,
+        *,
+        filter_by_title: str | None = None,
+        offset: int = 0,
+        limit: int = 100,
     ) -> list[Playlist]: ...
+
+    async def count_by_user_id(
+        self, user_id: UUID, *, filter_by_title: str | None = None
+    ) -> int: ...
 
     async def save(self, playlist: Playlist) -> Playlist: ...
 

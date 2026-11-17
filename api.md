@@ -189,6 +189,55 @@ access token and rotated refresh token.
 
 ## Screen pairing
 
+## Playlists
+
+### `POST /api/v1/playlists`
+
+Creates a playlist for the authenticated user with selected media assets. Every
+media ID must exist and belong to that user. Item positions must be unique;
+items are returned in position order. `duration_seconds` is optional per item.
+
+**Request:**
+
+```json
+{
+  "name": "Lobby playlist",
+  "description": "Lobby content",
+  "items": [
+    {"media_asset_id": "uuid", "position": 1, "duration_seconds": 15},
+    {"media_asset_id": "uuid", "position": 2}
+  ]
+}
+```
+
+An unavailable or unowned media ID returns `404 MEDIA_NOT_FOUND`.
+
+### `GET /api/v1/playlists`
+
+Lists the authenticated user's playlists using the shared pagination response.
+Supports `page` (default `1`), `limit` (default `20`, maximum `100`), and
+`filter_by_title`, which searches both playlist names and descriptions.
+
+### `GET /api/v1/playlists/{playlist_id}`
+
+Returns a playlist and its items for the authenticated owner. Missing playlists
+and playlists owned by another user return `404 PLAYLIST_NOT_FOUND`.
+
+### `PUT /api/v1/playlists/{playlist_id}`
+
+Replaces the playlist name, description, and complete ordered item list. The
+item list may be empty. Every selected media ID must exist and belong to the
+authenticated user. Active screens assigned to the playlist have their desired
+sync revision incremented after the update.
+
+### `DELETE /api/v1/playlists/{playlist_id}`
+
+Deletes the authenticated user's playlist, its items, and all active and
+historical screen assignments. Screens currently assigned to it have their
+desired sync revision incremented so they can clear the deleted playlist.
+Returns `204 NO CONTENT`; an unknown or unowned playlist returns
+`404 PLAYLIST_NOT_FOUND`.
+
 ### `PATCH /api/v1/screens/{screen_id}`
 
 Updates a screen's user-managed display name. Requires a valid Supabase access
