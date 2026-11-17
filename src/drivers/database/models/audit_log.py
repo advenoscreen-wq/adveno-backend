@@ -26,7 +26,7 @@ class AuditLogModel(Base):
 
     id: Mapped[UUID] = mapped_column(UUIDColumn, primary_key=True, default=uuid4)
     admin_id: Mapped[UUID | None] = mapped_column(
-        UUIDColumn, ForeignKey("users.id", ondelete="SET NULL")
+        UUIDColumn, ForeignKey("public.app_users.id", ondelete="SET NULL")
     )
     screen_id: Mapped[UUID | None] = mapped_column(
         UUIDColumn, ForeignKey("screens.id", ondelete="SET NULL")

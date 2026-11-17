@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from adapters.repositories.common import flush_session
+from adapters.repositories.common import flush_session, log_repository_operations
 from adapters.repositories.mappers import (
     apply_credential,
     to_credential,
@@ -21,12 +21,25 @@ from drivers.database.models.entities import (
 )
 
 
+@log_repository_operations
 class SqlAlchemyScreenCredentialRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
     async def get_by_id(self, credential_id: UUID) -> ScreenCredential | None:
         model = await self.session.get(ScreenCredentialModel, credential_id)
+        return to_credential(model) if model else None
+
+    async def get_active_credential_by_screen(
+        self, screen_id: UUID, *, for_update: bool = False
+    ) -> ScreenCredential | None:
+        statement = select(ScreenCredentialModel).where(
+            ScreenCredentialModel.screen_id == screen_id,
+            ScreenCredentialModel.revoked_at.is_(None),
+        )
+        if for_update:
+            statement = statement.with_for_update()
+        model = await self.session.scalar(statement)
         return to_credential(model) if model else None
 
     async def get_active_credentials_by_screen(self, screen_id: UUID) -> list[ScreenCredential]:
@@ -41,6 +54,10 @@ class SqlAlchemyScreenCredentialRepository:
         return [to_credential(model) for model in result]
 
     async def save(self, credential: ScreenCredential) -> ScreenCredential:
+        if credential.revoked_at is None and await self.get_active_credentials_by_screen(
+            credential.screen_id
+        ):
+            raise PersistenceError("screen already has an active credential")
         model = ScreenCredentialModel()
         apply_credential(credential, model)
         self.session.add(model)

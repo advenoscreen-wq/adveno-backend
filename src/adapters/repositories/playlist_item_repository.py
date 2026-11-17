@@ -9,7 +9,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from adapters.repositories.common import flush_session
+from adapters.repositories.common import flush_session, log_repository_operations
 from adapters.repositories.mappers import (
     apply_playlist_item,
     to_playlist_item,
@@ -25,6 +25,7 @@ from drivers.database.models.entities import (
 )
 
 
+@log_repository_operations
 class SqlAlchemyPlaylistItemRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -50,6 +51,14 @@ class SqlAlchemyPlaylistItemRepository:
             .order_by(PlaylistItemModel.position)
             .offset(offset)
             .limit(limit)
+        )
+        return [to_playlist_item(model) for model in result]
+
+    async def list_by_media_asset_id(self, media_asset_id: UUID) -> list[PlaylistItem]:
+        result = await self.session.scalars(
+            select(PlaylistItemModel)
+            .where(PlaylistItemModel.media_asset_id == media_asset_id)
+            .order_by(PlaylistItemModel.playlist_id)
         )
         return [to_playlist_item(model) for model in result]
 

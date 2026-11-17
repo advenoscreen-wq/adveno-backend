@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from adapters.repositories.common import flush_session
+from adapters.repositories.common import flush_session, log_repository_operations
 from adapters.repositories.mappers import (
     apply_sync_state,
     to_sync_state,
@@ -20,6 +22,7 @@ from drivers.database.models.entities import (
 )
 
 
+@log_repository_operations
 class SqlAlchemyScreenSyncStateRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -27,6 +30,31 @@ class SqlAlchemyScreenSyncStateRepository:
     async def get_by_screen_id(self, screen_id: UUID) -> ScreenSyncState | None:
         model = await self.session.get(ScreenSyncStateModel, screen_id)
         return to_sync_state(model) if model else None
+
+    async def increment_desired_revision(self, screen_id: UUID) -> ScreenSyncState:
+        statement = (
+            insert(ScreenSyncStateModel)
+            .values(
+                screen_id=screen_id,
+                desired_revision=1,
+                applied_revision=0,
+                sync_status="PENDING",
+            )
+            .on_conflict_do_update(
+                index_elements=[ScreenSyncStateModel.screen_id],
+                set_={
+                    "desired_revision": ScreenSyncStateModel.desired_revision + 1,
+                    "sync_status": "PENDING",
+                    "last_error": None,
+                    "updated_at": func.now(),
+                },
+            )
+            .returning(ScreenSyncStateModel)
+        )
+        model = await self.session.scalar(statement)
+        if model is None:
+            raise PersistenceError("screen sync state could not be incremented")
+        return to_sync_state(model)
 
     async def save(self, state: ScreenSyncState) -> ScreenSyncState:
         model = ScreenSyncStateModel()

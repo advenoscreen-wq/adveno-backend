@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID, uuid4
@@ -8,6 +9,15 @@ from domain.entities.common import utc_now, validate_timestamp
 from domain.exceptions import DomainError, InvalidStateTransition
 from domain.value_object import ScreenStatus
 
+_SCREEN_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def generate_screen_code() -> str:
+    """Generate a readable uppercase screen code with grouped characters."""
+    code = "".join(secrets.choice(_SCREEN_CODE_ALPHABET) for _ in range(16))
+    groups = (code[index : index + 4] for index in range(0, len(code), 4))
+    return "SCR-" + "-".join(groups)
+
 
 @dataclass
 class Screen:
@@ -15,7 +25,7 @@ class Screen:
 
     user_id: UUID
     id: UUID = field(default_factory=uuid4)
-    screen_code: str = ""
+    screen_code: str = field(default_factory=generate_screen_code)
     name: str = ""
     device_model: str | None = None
     app_version: str | None = None
@@ -50,6 +60,12 @@ class Screen:
 
     def deactivate(self) -> None:
         self.status = ScreenStatus.INACTIVE
+        self.updated_at = utc_now()
+
+    def rename(self, name: str) -> None:
+        if not name.strip():
+            raise DomainError("screen name is required")
+        self.name = name.strip()
         self.updated_at = utc_now()
 
     def record_heartbeat(

@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, String, func
+from sqlalchemy import Boolean, CheckConstraint, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from drivers.database.models.base import Base, Timestamp, UUIDColumn
@@ -16,15 +16,14 @@ if TYPE_CHECKING:
 
 
 class UserModel(Base):
-    __tablename__ = "users"
+    __tablename__ = "app_users"
     __table_args__ = (
-        CheckConstraint("role IN ('ADMIN', 'USER')", name="ck_users_role"),
-        Index("ix_users_role", "role"),
+        CheckConstraint("role IN ('ADMIN', 'USER')", name="ck_app_users_role"),
+        Index("ix_app_users_role", "role"),
+        {"schema": "public"},
     )
 
-    id: Mapped[UUID] = mapped_column(
-        UUIDColumn, ForeignKey("auth.users.id", ondelete="CASCADE"), primary_key=True
-    )
+    id: Mapped[UUID] = mapped_column(UUIDColumn, primary_key=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="USER")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -36,5 +35,6 @@ class UserModel(Base):
     audit_logs: Mapped[list[AuditLogModel]] = relationship(
         "AuditLogModel", back_populates="admin", lazy="raise"
     )
+
 
 __all__ = ["UserModel"]

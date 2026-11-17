@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import ForeignKey, Index, String, func
+from sqlalchemy import ForeignKey, Index, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from drivers.database.models.base import Base, Timestamp, UUIDColumn
@@ -19,7 +19,12 @@ class ScreenCredentialModel(Base):
     __tablename__ = "screen_credentials"
     __table_args__ = (
         Index("ix_screen_credentials_screen_id", "screen_id"),
-        Index("ix_screen_credentials_active", "screen_id", "revoked_at"),
+        Index(
+            "uq_screen_credentials_one_active_per_screen",
+            "screen_id",
+            unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(UUIDColumn, primary_key=True, default=uuid4)

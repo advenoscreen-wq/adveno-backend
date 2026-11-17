@@ -8,7 +8,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from adapters.repositories.common import flush_session
+from adapters.repositories.common import flush_session, log_repository_operations
 from adapters.repositories.mappers import (
     apply_pairing_session,
     to_pairing_session,
@@ -17,17 +17,39 @@ from domain.entities.entities import (
     ScreenPairingSession,
 )
 from domain.exceptions import PersistenceError
+from domain.value_object import PairingSessionStatus
 from drivers.database.models.entities import (
     ScreenPairingSessionModel,
 )
 
 
+@log_repository_operations
 class SqlAlchemyScreenPairingSessionRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_by_id(self, session_id: UUID) -> ScreenPairingSession | None:
-        model = await self.session.get(ScreenPairingSessionModel, session_id)
+    async def get_by_id(
+        self, session_id: UUID, *, for_update: bool = False
+    ) -> ScreenPairingSession | None:
+        if for_update:
+            model = await self.session.scalar(
+                select(ScreenPairingSessionModel)
+                .where(ScreenPairingSessionModel.id == session_id)
+                .with_for_update()
+            )
+        else:
+            model = await self.session.get(ScreenPairingSessionModel, session_id)
+        return to_pairing_session(model) if model else None
+
+    async def get_by_token_hash(
+        self, token_hash: str, *, for_update: bool = False
+    ) -> ScreenPairingSession | None:
+        statement = select(ScreenPairingSessionModel).where(
+            ScreenPairingSessionModel.token_hash == token_hash
+        )
+        if for_update:
+            statement = statement.with_for_update()
+        model = await self.session.scalar(statement)
         return to_pairing_session(model) if model else None
 
     async def get_valid_session(
@@ -37,6 +59,12 @@ class SqlAlchemyScreenPairingSessionRepository:
         model = await self.session.scalar(
             select(ScreenPairingSessionModel).where(
                 ScreenPairingSessionModel.token_hash == token_hash,
+                ScreenPairingSessionModel.status.in_(
+                    (
+                        PairingSessionStatus.PENDING.value,
+                        PairingSessionStatus.CONNECTING.value,
+                    )
+                ),
                 ScreenPairingSessionModel.paired_at.is_(None),
                 ScreenPairingSessionModel.expires_at > check_at,
             )

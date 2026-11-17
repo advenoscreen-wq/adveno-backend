@@ -5,6 +5,8 @@ import logging
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from application.common.exceptions import AppError
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,6 +46,30 @@ async def http_exception_handler(request: Request, exc: Exception) -> JSONRespon
     )
 
 
+async def app_error_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Return expected application failures in the shared API error envelope."""
+    if not isinstance(exc, AppError):
+        raise TypeError("exc must be an AppError")
+    logger.warning(
+        "Application request failed",
+        extra={
+            "path": request.url.path,
+            "error_code": exc.code,
+            "status_code": exc.status_code,
+        },
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": {
+                "code": exc.code,
+                "message": exc.message,
+                "status_code": exc.status_code,
+            }
+        },
+    )
+
+
 def register_exception_handlers(app: object) -> None:
     """Register global exception handlers on a FastAPI application."""
     from fastapi import FastAPI
@@ -51,4 +77,5 @@ def register_exception_handlers(app: object) -> None:
     if not isinstance(app, FastAPI):
         raise TypeError("app must be a FastAPI instance")
     app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(AppError, app_error_exception_handler)
     app.add_exception_handler(Exception, unexpected_exception_handler)

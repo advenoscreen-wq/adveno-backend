@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from adapters.repositories.common import flush_session
+from adapters.repositories.common import flush_session, log_repository_operations
 from adapters.repositories.mappers import (
     to_audit_log,
 )
@@ -19,6 +19,7 @@ from drivers.database.models.entities import (
 )
 
 
+@log_repository_operations
 class SqlAlchemyAuditLogRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
