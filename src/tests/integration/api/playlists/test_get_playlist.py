@@ -7,12 +7,14 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.repositories.playlist_repository import SqlAlchemyPlaylistRepository
-from domain import Playlist
+from adapters.repositories.user_repository import SqlAlchemyUserRepository
+from domain import Playlist, User
 
 pytestmark = pytest.mark.integration
 
 USER_ID = UUID("00000000-0000-0000-0000-000000000099")
 AUTH_HEADERS = {"Authorization": "Bearer valid-access-token"}
+OTHER_USER_ID = UUID("00000000-0000-0000-0000-000000000098")
 
 
 async def test_get_playlist_returns_owned_playlist(
@@ -38,7 +40,8 @@ async def test_get_playlist_returns_not_found_for_missing_or_unowned_playlist(
     client: httpx.AsyncClient,
     integration_session: AsyncSession,
 ) -> None:
-    other_user_playlist = Playlist(name="Private", user_id=uuid4())
+    await SqlAlchemyUserRepository(integration_session).save(User(id=OTHER_USER_ID))
+    other_user_playlist = Playlist(name="Private", user_id=OTHER_USER_ID)
     await SqlAlchemyPlaylistRepository(integration_session).save(other_user_playlist)
     await integration_session.commit()
 

@@ -12,13 +12,15 @@ from adapters.repositories.domain_repositories import (
     SqlAlchemyScreenPlaylistAssignmentRepository,
     SqlAlchemyScreenRepository,
 )
-from domain import Playlist, Screen, ScreenPlaylistAssignment
+from adapters.repositories.user_repository import SqlAlchemyUserRepository
+from domain import Playlist, Screen, ScreenPlaylistAssignment, User
 from drivers.database.models.screen_sync_state import ScreenSyncStateModel
 
 pytestmark = pytest.mark.integration
 
 USER_ID = UUID("00000000-0000-0000-0000-000000000099")
 AUTH_HEADERS = {"Authorization": "Bearer valid-access-token"}
+OTHER_USER_ID = UUID("00000000-0000-0000-0000-000000000098")
 
 
 async def test_delete_playlist_removes_items_and_all_assignments_and_syncs_screen(
@@ -70,8 +72,9 @@ async def test_delete_playlist_returns_not_found_for_unknown_or_unowned_playlist
     client: httpx.AsyncClient,
     integration_session: AsyncSession,
 ) -> None:
+    await SqlAlchemyUserRepository(integration_session).save(User(id=OTHER_USER_ID))
     other_user_playlist = await SqlAlchemyPlaylistRepository(integration_session).save(
-        Playlist(name="Private", user_id=uuid4())
+        Playlist(name="Private", user_id=OTHER_USER_ID)
     )
     await integration_session.commit()
 

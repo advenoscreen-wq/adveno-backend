@@ -1,18 +1,20 @@
 """Integration tests for paginated playlist listing and filtering."""
 
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.repositories.playlist_repository import SqlAlchemyPlaylistRepository
-from domain import Playlist
+from adapters.repositories.user_repository import SqlAlchemyUserRepository
+from domain import Playlist, User
 
 pytestmark = pytest.mark.integration
 
 USER_ID = UUID("00000000-0000-0000-0000-000000000099")
 AUTH_HEADERS = {"Authorization": "Bearer valid-access-token"}
+OTHER_USER_ID = UUID("00000000-0000-0000-0000-000000000098")
 
 
 async def test_list_playlists_filters_name_and_description_for_current_user(
@@ -25,7 +27,8 @@ async def test_list_playlists_filters_name_and_description_for_current_user(
         Playlist(name="Another playlist", description="Has keyword here", user_id=USER_ID)
     )
     await repository.save(Playlist(name="Unrelated", user_id=USER_ID))
-    await repository.save(Playlist(name="Keyword private", user_id=uuid4()))
+    await SqlAlchemyUserRepository(integration_session).save(User(id=OTHER_USER_ID))
+    await repository.save(Playlist(name="Keyword private", user_id=OTHER_USER_ID))
     await integration_session.commit()
 
     response = await client.get(
@@ -50,11 +53,10 @@ async def test_list_playlists_returns_requested_page(
     integration_session: AsyncSession,
 ) -> None:
     repository = SqlAlchemyPlaylistRepository(integration_session)
-    playlists = [
+    for index in range(3):
         await repository.save(Playlist(name=f"Playlist {index}", user_id=USER_ID))
-        for index in range(3)
-    ]
     await integration_session.commit()
+    expected_page = await repository.list_by_user_id(USER_ID, offset=2, limit=2)
 
     response = await client.get(
         "/api/v1/playlists",
@@ -70,7 +72,9 @@ async def test_list_playlists_returns_requested_page(
     assert body["limit"] == 2
     assert body["has_next"] is False
     assert body["has_prev"] is True
-    assert [item["id"] for item in body["items"]] == [str(playlists[2].id)]
+    assert [item["id"] for item in body["items"]] == [
+        str(playlist.id) for playlist in expected_page
+    ]
 
 
 async def test_list_playlists_requires_authentication(client: httpx.AsyncClient) -> None:
