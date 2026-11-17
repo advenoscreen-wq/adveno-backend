@@ -14,6 +14,7 @@ from adapters.repositories.screen_sync_state_repository import SqlAlchemyScreenS
 from application.use_cases.screens.assign_playlist_use_case import AssignPlaylistUseCase
 from application.use_cases.screens.get_screen_use_case import GetScreenUseCase
 from application.use_cases.screens.list_screens_use_case import ListScreensUseCase
+from application.use_cases.screens.unassign_playlist_use_case import UnassignPlaylistUseCase
 from application.use_cases.screens.update_screen_use_case import UpdateScreenUseCase
 from drivers.database.database import session_dependency
 from ports.repositories.playlist_repository import PlaylistRepository
@@ -112,3 +113,27 @@ def get_assign_playlist_use_case(
 
 
 AssignPlaylist = Annotated[AssignPlaylistUseCase, Depends(get_assign_playlist_use_case)]
+
+
+def get_unassign_playlist_use_case(
+    screen_repository: ScreenRepositoryDependency,
+    assignment_repository: Annotated[
+        ScreenPlaylistAssignmentRepository,
+        Depends(get_assignment_repository),
+    ],
+    sync_state_repository: Annotated[
+        ScreenSyncStateRepository,
+        Depends(get_sync_state_repository),
+    ],
+) -> UnassignPlaylistUseCase:
+    return UnassignPlaylistUseCase(
+        screen_repository=screen_repository,
+        assignment_repository=assignment_repository,
+        sync_state_repository=sync_state_repository,
+    )
+
+
+UnassignPlaylist = Annotated[
+    UnassignPlaylistUseCase,
+    Depends(get_unassign_playlist_use_case),
+]

@@ -1,13 +1,15 @@
 """Shared API integration client backed by Postgres and Redis containers."""
 
 from collections.abc import AsyncIterator
+from typing import Annotated
 from unittest.mock import AsyncMock, Mock
 from uuid import UUID
 
 import httpx
 import pytest
 import pytest_asyncio
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from testcontainers.community.postgres import PostgresContainer
@@ -16,11 +18,18 @@ from testcontainers.community.redis import RedisContainer
 from adapters.repositories.user_repository import SqlAlchemyUserRepository
 from adapters.services.redis_cache_service import RedisCacheService
 from application.dtos.oauth import OAuthTokenResult, OAuthUserInfo
-from application.exceptions.authentication import InvalidAccessTokenError
+from application.exceptions.authentication import (
+    AuthenticationRequiredError,
+    InvalidAccessTokenError,
+)
 from config.settings import Settings
 from domain import User
 from drivers.core.app import create_app
-from drivers.routers.dependencies import get_cache_service, get_oauth_provider
+from drivers.routers.dependencies import (
+    get_access_token_user_id,
+    get_cache_service,
+    get_oauth_provider,
+)
 from drivers.routers.media.dependencies import get_storage_service
 from ports.services.oauth_provider import OAuthProvider
 from ports.services.storage_service import StorageService
@@ -109,6 +118,18 @@ async def api_app(
     app = create_app(settings)
     app.dependency_overrides[get_cache_service] = lambda: redis_service
     app.dependency_overrides[get_oauth_provider] = lambda: oauth_provider
+
+    async def test_access_token_user_id(
+        credentials: Annotated[
+            HTTPAuthorizationCredentials | None,
+            Depends(HTTPBearer(auto_error=False)),
+        ],
+    ) -> UUID:
+        if credentials is None or credentials.credentials != "valid-access-token":
+            raise AuthenticationRequiredError()
+        return ADMIN_ID
+
+    app.dependency_overrides[get_access_token_user_id] = test_access_token_user_id
     app.dependency_overrides[get_storage_service] = lambda: storage_service
     try:
         yield app

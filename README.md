@@ -68,4 +68,7 @@ Unit and integration tests live under `src/tests`, organized by concern.
 
 Copy `.env.example` to `.env` for local settings. Never commit `.env` or
 real credentials. Production configuration must provide a non-placeholder
-`JWT_SECRET` and a managed database URL.
+`JWT_SECRET`, the Supabase signing-key fields, and a managed database URL.
+Protected API requests verify Supabase access-token signatures locally using
+`SUPABASE_JWT_KID`, `SUPABASE_JWT_X`, and `SUPABASE_JWT_Y`; the API does not call
+Supabase Auth's user-info endpoint to identify each request.

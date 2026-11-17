@@ -2,13 +2,14 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Response, status
 
 from drivers.routers.dependencies import CurrentUser
 from drivers.routers.screens.dependencies import (
     AssignPlaylist,
     GetScreen,
     ListScreens,
+    UnassignPlaylist,
     UpdateScreen,
 )
 from drivers.schemas.common import PaginationResponse
@@ -100,6 +101,19 @@ async def assign_playlist(
         playlist_id=assignment.playlist_id,
         assigned_at=assignment.assigned_at,
     )
+
+
+@router.delete(
+    "/{screen_id}/playlist",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def unassign_playlist(
+    screen_id: UUID,
+    current_user: CurrentUser,
+    use_case: UnassignPlaylist,
+) -> Response:
+    await use_case(screen_id=screen_id, user_id=current_user.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.patch("/{screen_id}", response_model=UpdateScreenResponse, status_code=status.HTTP_200_OK)

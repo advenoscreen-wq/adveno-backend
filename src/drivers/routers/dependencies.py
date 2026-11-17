@@ -13,10 +13,10 @@ from adapters.services.oauth_service.supabase_oauth import SupabaseOAuthAdapter
 from adapters.services.redis_cache_service import RedisCacheService
 from application.exceptions.authentication import (
     AuthenticationRequiredError,
-    InvalidAccessTokenError,
 )
 from config.settings import Settings, get_settings
 from domain import User
+from drivers.core.access_token import decode_access_token_user_id
 from drivers.database.database import check_database, session_dependency
 
 
@@ -71,31 +71,27 @@ def get_user_repository(
     return SqlAlchemyUserRepository(session)
 
 
-async def get_current_user(
+async def get_access_token_user_id(
     credentials: Annotated[
         HTTPAuthorizationCredentials | None,
         Depends(HTTPBearer(auto_error=False)),
     ],
-    provider: Annotated[SupabaseOAuthAdapter, Depends(get_oauth_provider)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> UUID:
+    """Verify the bearer token locally and return its user subject."""
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise AuthenticationRequiredError()
+    return decode_access_token_user_id(credentials.credentials, settings)
+
+
+async def get_current_user(
+    user_id: Annotated[UUID, Depends(get_access_token_user_id)],
     user_repository: Annotated[
         SqlAlchemyUserRepository,
         Depends(get_user_repository),
     ],
 ) -> User:
     """Validate the bearer token and return its active application user."""
-    if credentials is None or credentials.scheme.lower() != "bearer":
-        raise AuthenticationRequiredError()
-
-    try:
-        identity = await provider.get_user_info(credentials.credentials)
-    except InvalidAccessTokenError as error:
-        raise AuthenticationRequiredError() from error
-
-    try:
-        user_id = UUID(identity.provider_user_id)
-    except (TypeError, ValueError) as error:
-        raise AuthenticationRequiredError() from error
-
     user = await user_repository.get_by_id(user_id)
     if user is None or not user.is_active:
         raise AuthenticationRequiredError()

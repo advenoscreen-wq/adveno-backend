@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -33,6 +34,10 @@ class Settings(BaseSettings):
     heartbeat_timeout_seconds: int = Field(default=120, ge=1)
     cors_allowed_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
     supabase_url: str = ""
+    supabase_jwt_kid: str = ""
+    supabase_jwt_x: str = ""
+    supabase_jwt_y: str = ""
+    supabase_jwt_algorithm: Literal["ES256"] = "ES256"
     supabase_anon_key: SecretStr = SecretStr("")
     media_storage_bucket: str = Field(default="adveno", min_length=1)
     oauth_provider: str = "google"
@@ -71,6 +76,10 @@ class Settings(BaseSettings):
         if self.environment == "production":
             if not self.supabase_url or not self.supabase_anon_key.get_secret_value():
                 raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY are required in production")
+            if not all((self.supabase_jwt_kid, self.supabase_jwt_x, self.supabase_jwt_y)):
+                raise ValueError(
+                    "SUPABASE_JWT_KID, SUPABASE_JWT_X, and SUPABASE_JWT_Y are required"
+                )
             if not self.session_cookie_secure:
                 raise ValueError("SESSION_COOKIE_SECURE must be true in production")
         return self

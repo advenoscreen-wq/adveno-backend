@@ -269,6 +269,13 @@ same assignment is idempotent.
 
 **Request:** `{"playlist_id": "uuid"}`
 
+### `DELETE /api/v1/screens/{screen_id}/playlist`
+
+Removes the active playlist assignment from an owned screen while preserving
+assignment history and incrementing the screen's desired sync revision.
+Returns `204 NO CONTENT`; repeating the request when no playlist is assigned is
+idempotent.
+
 ### `POST /api/v1/pairing/sessions`
 
 Creates a pending pairing session for a TV. The backend stores only a SHA-256
