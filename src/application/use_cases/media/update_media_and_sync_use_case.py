@@ -18,6 +18,7 @@ from ports.repositories.screen_playlist_assignment_repository import (
     ScreenPlaylistAssignmentRepository,
 )
 from ports.repositories.screen_sync_state_repository import ScreenSyncStateRepository
+from ports.services.storage_service import StorageService
 
 
 class UpdateMediaAndSyncUseCase:
@@ -28,12 +29,14 @@ class UpdateMediaAndSyncUseCase:
         playlist_item_repository: PlaylistItemRepository,
         assignment_repository: ScreenPlaylistAssignmentRepository,
         sync_state_repository: ScreenSyncStateRepository,
+        storage_service: StorageService,
         bucket: str,
     ) -> None:
         self._media_repository = media_repository
         self._playlist_item_repository = playlist_item_repository
         self._assignment_repository = assignment_repository
         self._sync_state_repository = sync_state_repository
+        self._storage_service = storage_service
         self._bucket = bucket
 
     async def __call__(self, command: UpdateMediaAndSyncCommand) -> UpdateMediaAndSyncResult:
@@ -64,7 +67,14 @@ class UpdateMediaAndSyncUseCase:
         except PersistenceConflictError as error:
             raise MediaAlreadyRegisteredError() from error
 
-        return UpdateMediaAndSyncResult(media=media, sync_states=sync_states)
+        return UpdateMediaAndSyncResult(
+            media=media,
+            media_url=self._storage_service.get_public_url(
+                bucket=self._bucket,
+                object_path=media.storage_path,
+            ),
+            sync_states=sync_states,
+        )
 
     def _replace_media_file(
         self,

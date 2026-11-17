@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.repositories.common import flush_session, log_repository_operations
@@ -56,9 +56,28 @@ class SqlAlchemyMediaAssetRepository:
         return [to_media_asset(model) for model in result]
 
     async def list_by_user_id(
-        self, user_id: UUID, *, offset: int = 0, limit: int = 100
+        self,
+        user_id: UUID,
+        *,
+        filter_by_name: str | None = None,
+        offset: int = 0,
+        limit: int = 100,
     ) -> list[MediaAsset]:
-        return await self.list_all(user_id=user_id, offset=offset, limit=limit)
+        statement = select(MediaAssetModel).where(MediaAssetModel.user_id == user_id)
+        if filter_by_name:
+            statement = statement.where(MediaAssetModel.name.ilike(f"%{filter_by_name}%"))
+        result = await self.session.scalars(
+            statement.order_by(MediaAssetModel.created_at, MediaAssetModel.id)
+            .offset(offset)
+            .limit(limit)
+        )
+        return [to_media_asset(model) for model in result]
+
+    async def count_by_user_id(self, user_id: UUID, *, filter_by_name: str | None = None) -> int:
+        statement = select(func.count(MediaAssetModel.id)).where(MediaAssetModel.user_id == user_id)
+        if filter_by_name:
+            statement = statement.where(MediaAssetModel.name.ilike(f"%{filter_by_name}%"))
+        return int(await self.session.scalar(statement) or 0)
 
     async def save(self, asset: MediaAsset) -> MediaAsset:
         model = MediaAssetModel()

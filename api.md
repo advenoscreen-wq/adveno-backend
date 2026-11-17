@@ -79,6 +79,24 @@ must be configured as public for the URL to be readable without authentication.
 Returns a media asset owned by the authenticated user, with its public
 `media_url`. Unknown or another user's media returns `404 MEDIA_NOT_FOUND`.
 
+### `GET /api/v1/media`
+
+Lists media owned by the authenticated user. Supports `filter_by_name` for a
+case-insensitive partial name match, `page` (default `1`), and `limit` (default
+`20`, maximum `100`). Each item includes its public `media_url`.
+
+```json
+{
+  "items": [],
+  "total_pages": 0,
+  "total_items": 0,
+  "has_next": false,
+  "has_prev": false,
+  "limit": 20,
+  "page": 1
+}
+```
+
 ### `POST /api/v1/media/{media_id}/upload-url`
 
 Requests an upload URL to replace the object for an existing active media record.

@@ -1,9 +1,17 @@
 """Schemas for media endpoints."""
 
 from datetime import datetime
+from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AliasPath,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from domain.value_object import MediaStatus, MediaType
 
@@ -55,19 +63,25 @@ class CreateMediaAssetRequest(BaseModel):
 
 
 class MediaAssetResponse(BaseModel):
-    id: UUID
-    name: str
-    media_type: MediaType
-    mime_type: str
-    storage_path: str
-    file_size: int
-    checksum: str
-    width: int | None
-    height: int | None
-    duration_seconds: int | None
-    status: MediaStatus
-    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID = Field(validation_alias=AliasPath("media", "id"))
+    name: str = Field(validation_alias=AliasPath("media", "name"))
+    media_type: MediaType = Field(validation_alias=AliasPath("media", "media_type"))
+    mime_type: str = Field(validation_alias=AliasPath("media", "mime_type"))
+    storage_path: str = Field(validation_alias=AliasPath("media", "storage_path"))
+    file_size: int = Field(validation_alias=AliasPath("media", "file_size"))
+    checksum: str = Field(validation_alias=AliasPath("media", "checksum"))
+    width: int | None = Field(validation_alias=AliasPath("media", "width"))
+    height: int | None = Field(validation_alias=AliasPath("media", "height"))
+    duration_seconds: int | None = Field(validation_alias=AliasPath("media", "duration_seconds"))
+    status: MediaStatus = Field(validation_alias=AliasPath("media", "status"))
+    created_at: datetime = Field(validation_alias=AliasPath("media", "created_at"))
     media_url: str
+
+    @classmethod
+    def from_result(cls, result: object) -> Self:
+        return cls.model_validate(result, from_attributes=True)
 
 
 class UpdateMediaAndSyncRequest(BaseModel):
@@ -124,9 +138,11 @@ class UpdateMediaAndSyncRequest(BaseModel):
 
 
 class ScreenSyncRevision(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     screen_id: UUID
     desired_revision: int
 
 
 class UpdateMediaAndSyncResponse(MediaAssetResponse):
-    screen_sync: list[ScreenSyncRevision]
+    screen_sync: list[ScreenSyncRevision] = Field(validation_alias="sync_states")

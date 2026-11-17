@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 
 from application.use_cases.media.commands import (
     CreateMediaAssetCommand,
@@ -13,27 +13,55 @@ from application.use_cases.media.commands import (
 from drivers.routers.dependencies import (
     AuthenticatedAccessToken,
     CurrentUser,
-    SettingsDependency,
 )
 from drivers.routers.media.dependencies import (
     CreateMediaAsset,
     GetMediaAsset,
+    ListMediaAssets,
     RequestMediaReplacementUploadUrl,
     RequestMediaUploadUrl,
-    StorageServiceDependency,
     UpdateMediaAndSync,
 )
+from drivers.schemas.common import PaginationResponse
 from drivers.schemas.media import (
     CreateMediaAssetRequest,
     MediaAssetResponse,
     RequestMediaUploadUrlRequest,
     RequestMediaUploadUrlResponse,
-    ScreenSyncRevision,
     UpdateMediaAndSyncRequest,
     UpdateMediaAndSyncResponse,
 )
 
 router = APIRouter(prefix="/media", tags=["media"])
+
+
+@router.get(
+    "",
+    status_code=status.HTTP_200_OK,
+    response_model=PaginationResponse[MediaAssetResponse],
+)
+async def list_media_assets(
+    current_user: CurrentUser,
+    use_case: ListMediaAssets,
+    filter_by_name: str | None = Query(default=None, max_length=255),
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> PaginationResponse[MediaAssetResponse]:
+    result = await use_case(
+        user_id=current_user.id,
+        filter_by_name=filter_by_name,
+        page=page,
+        limit=limit,
+    )
+    return PaginationResponse[MediaAssetResponse](
+        items=result.items,
+        total_pages=result.total_pages,
+        total_items=result.total_items,
+        has_next=result.has_next,
+        has_prev=result.has_prev,
+        limit=result.limit,
+        page=result.page,
+    )
 
 
 @router.post(
@@ -93,8 +121,6 @@ async def create_media_asset(
     body: CreateMediaAssetRequest,
     current_user: CurrentUser,
     use_case: CreateMediaAsset,
-    storage_service: StorageServiceDependency,
-    settings: SettingsDependency,
 ) -> MediaAssetResponse:
     result = await use_case(
         CreateMediaAssetCommand(
@@ -109,13 +135,7 @@ async def create_media_asset(
             duration_seconds=body.duration_seconds,
         )
     )
-    return MediaAssetResponse(
-        **vars(result.media),
-        media_url=storage_service.get_public_url(
-            bucket=settings.media_storage_bucket,
-            object_path=result.media.storage_path,
-        ),
-    )
+    return MediaAssetResponse.from_result(result)
 
 
 @router.get(
@@ -127,17 +147,9 @@ async def get_media_asset(
     media_id: UUID,
     current_user: CurrentUser,
     use_case: GetMediaAsset,
-    storage_service: StorageServiceDependency,
-    settings: SettingsDependency,
 ) -> MediaAssetResponse:
-    media = await use_case(media_id=media_id, user_id=current_user.id)
-    return MediaAssetResponse(
-        **vars(media),
-        media_url=storage_service.get_public_url(
-            bucket=settings.media_storage_bucket,
-            object_path=media.storage_path,
-        ),
-    )
+    result = await use_case(media_id=media_id, user_id=current_user.id)
+    return MediaAssetResponse.from_result(result)
 
 
 @router.put(
@@ -150,8 +162,6 @@ async def update_media_and_sync(
     body: UpdateMediaAndSyncRequest,
     current_user: CurrentUser,
     use_case: UpdateMediaAndSync,
-    storage_service: StorageServiceDependency,
-    settings: SettingsDependency,
 ) -> UpdateMediaAndSyncResponse:
     result = await use_case(
         UpdateMediaAndSyncCommand(
@@ -168,17 +178,4 @@ async def update_media_and_sync(
             duration_seconds=body.duration_seconds,
         )
     )
-    return UpdateMediaAndSyncResponse(
-        **vars(result.media),
-        media_url=storage_service.get_public_url(
-            bucket=settings.media_storage_bucket,
-            object_path=result.media.storage_path,
-        ),
-        screen_sync=[
-            ScreenSyncRevision(
-                screen_id=state.screen_id,
-                desired_revision=state.desired_revision,
-            )
-            for state in result.sync_states
-        ],
-    )
+    return UpdateMediaAndSyncResponse.from_result(result)

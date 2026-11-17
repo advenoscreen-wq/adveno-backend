@@ -17,6 +17,7 @@ from adapters.repositories.screen_sync_state_repository import (
 from adapters.services.storage.supabase_storage_service import SupabaseStorageService
 from application.use_cases.media.create_media_asset_use_case import CreateMediaAssetUseCase
 from application.use_cases.media.get_media_asset_use_case import GetMediaAssetUseCase
+from application.use_cases.media.list_media_assets_use_case import ListMediaAssetsUseCase
 from application.use_cases.media.request_media_replacement_upload_url_use_case import (
     RequestMediaReplacementUploadUrlUseCase,
 )
@@ -91,14 +92,39 @@ MediaAssetRepositoryDependency = Annotated[
 
 def get_media_asset_use_case(
     repository: MediaAssetRepositoryDependency,
+    storage_service: StorageServiceDependency,
+    settings: SettingsDependency,
 ) -> GetMediaAssetUseCase:
     """Build the media asset lookup use case."""
-    return GetMediaAssetUseCase(repository=repository)
+    return GetMediaAssetUseCase(
+        repository=repository,
+        storage_service=storage_service,
+        bucket=settings.media_storage_bucket,
+    )
 
 
 GetMediaAsset = Annotated[
     GetMediaAssetUseCase,
     Depends(get_media_asset_use_case),
+]
+
+
+def get_list_media_assets_use_case(
+    repository: MediaAssetRepositoryDependency,
+    storage_service: StorageServiceDependency,
+    settings: SettingsDependency,
+) -> ListMediaAssetsUseCase:
+    """Build the paginated media listing use case."""
+    return ListMediaAssetsUseCase(
+        repository=repository,
+        storage_service=storage_service,
+        bucket=settings.media_storage_bucket,
+    )
+
+
+ListMediaAssets = Annotated[
+    ListMediaAssetsUseCase,
+    Depends(get_list_media_assets_use_case),
 ]
 
 
@@ -123,11 +149,13 @@ RequestMediaReplacementUploadUrl = Annotated[
 
 def get_create_media_asset_use_case(
     repository: MediaAssetRepositoryDependency,
+    storage_service: StorageServiceDependency,
     settings: SettingsDependency,
 ) -> CreateMediaAssetUseCase:
     """Build the media record creation use case."""
     return CreateMediaAssetUseCase(
         repository=repository,
+        storage_service=storage_service,
         bucket=settings.media_storage_bucket,
     )
 
@@ -173,6 +201,7 @@ def get_update_media_and_sync_use_case(
         ScreenSyncStateRepository,
         Depends(get_screen_sync_state_repository),
     ],
+    storage_service: StorageServiceDependency,
     settings: SettingsDependency,
 ) -> UpdateMediaAndSyncUseCase:
     """Build the use case that updates media and bumps screen sync revision."""
@@ -181,6 +210,7 @@ def get_update_media_and_sync_use_case(
         playlist_item_repository=playlist_item_repository,
         assignment_repository=assignment_repository,
         sync_state_repository=sync_state_repository,
+        storage_service=storage_service,
         bucket=settings.media_storage_bucket,
     )
 
