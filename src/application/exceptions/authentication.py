@@ -23,3 +23,14 @@ class InvalidAccessTokenError(AppError):
             code="INVALID_ACCESS_TOKEN",
             status_code=401,
         )
+
+
+class InvalidScreenCredentialError(AppError):
+    """Raised when a TV device credential is missing, invalid, or revoked."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Valid screen authentication is required.",
+            code="INVALID_SCREEN_CREDENTIAL",
+            status_code=401,
+        )

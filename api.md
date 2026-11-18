@@ -256,6 +256,17 @@ remain managed by the TV/backend.
 **Response `200`:** the updated screen ID, screen code, name, status, and update
 timestamp. An unknown or another user's screen returns `404 SCREEN_NOT_FOUND`.
 
+### `POST /api/v1/screens/{screen_id}/disconnect`
+
+Revokes the screen's active TV credential and preserves its screen record,
+playlist assignment, and history. Returns `204 NO CONTENT`; disconnecting an
+already disconnected screen is idempotent.
+
+### `DELETE /api/v1/screens/{screen_id}`
+
+Permanently deletes an owned screen and its dependent credentials, pairing
+sessions, playlist assignments, and sync state. Returns `204 NO CONTENT`.
+
 ### `GET /api/v1/screens/{screen_id}`
 
 Returns the screen and its active `assigned_playlist`, or `null` when no playlist

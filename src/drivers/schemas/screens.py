@@ -53,3 +53,7 @@ class ScreenPlaylistAssignmentResponse(BaseModel):
     screen_id: UUID
     playlist_id: UUID
     assigned_at: datetime
+
+
+class ScreenSyncCheckResponse(BaseModel):
+    need_sync: bool

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.repositories.common import flush_session, log_repository_operations
@@ -93,3 +94,12 @@ class SqlAlchemyScreenRepository:
         apply_screen(screen, model)
         await flush_session(self.session, "screen update")
         return to_screen(model)
+
+    async def delete(self, screen_id: UUID, *, user_id: UUID | None = None) -> None:
+        statement = delete(ScreenModel).where(ScreenModel.id == screen_id)
+        if user_id is not None:
+            statement = statement.where(ScreenModel.user_id == user_id)
+        result = await self.session.execute(statement)
+        if not isinstance(result, CursorResult) or result.rowcount == 0:
+            raise PersistenceError("screen was not found")
+        await flush_session(self.session, "screen delete")

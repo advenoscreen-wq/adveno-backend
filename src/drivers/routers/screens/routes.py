@@ -7,8 +7,12 @@ from fastapi import APIRouter, Query, Response, status
 from drivers.routers.dependencies import CurrentUser
 from drivers.routers.screens.dependencies import (
     AssignPlaylist,
+    CheckScreenSync,
+    DeleteScreen,
+    DisconnectScreen,
     GetScreen,
     ListScreens,
+    ScreenDeviceCredential,
     UnassignPlaylist,
     UpdateScreen,
 )
@@ -19,11 +23,26 @@ from drivers.schemas.screens import (
     ScreenListItemResponse,
     ScreenPlaylistAssignmentResponse,
     ScreenResponse,
+    ScreenSyncCheckResponse,
     UpdateScreenRequest,
     UpdateScreenResponse,
 )
 
 router = APIRouter(prefix="/screens", tags=["screens"])
+
+
+@router.post(
+    "/sync-check",
+    response_model=ScreenSyncCheckResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def check_screen_sync(
+    use_case: CheckScreenSync,
+    credential: ScreenDeviceCredential,
+) -> ScreenSyncCheckResponse:
+    """Record a TV heartbeat and report whether it needs to fetch updates."""
+    need_sync = await use_case(credential=credential)
+    return ScreenSyncCheckResponse(need_sync=need_sync)
 
 
 @router.get(
@@ -135,3 +154,29 @@ async def update_screen(
         status=screen.status,
         updated_at=screen.updated_at,
     )
+
+
+@router.post(
+    "/{screen_id}/disconnect",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def disconnect_screen(
+    screen_id: UUID,
+    current_user: CurrentUser,
+    use_case: DisconnectScreen,
+) -> Response:
+    await use_case(screen_id=screen_id, user_id=current_user.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete(
+    "/{screen_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_screen(
+    screen_id: UUID,
+    current_user: CurrentUser,
+    use_case: DeleteScreen,
+) -> Response:
+    await use_case(screen_id=screen_id, user_id=current_user.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
