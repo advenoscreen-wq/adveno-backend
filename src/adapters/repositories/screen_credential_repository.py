@@ -30,11 +30,10 @@ class SqlAlchemyScreenCredentialRepository:
         model = await self.session.get(ScreenCredentialModel, credential_id)
         return to_credential(model) if model else None
 
-    async def get_active_by_hash(self, credential_hash: str) -> ScreenCredential | None:
+    async def get_by_hash(self, credential_hash: str) -> ScreenCredential | None:
         model = await self.session.scalar(
             select(ScreenCredentialModel).where(
                 ScreenCredentialModel.credential_hash == credential_hash,
-                ScreenCredentialModel.revoked_at.is_(None),
             )
         )
         return to_credential(model) if model else None

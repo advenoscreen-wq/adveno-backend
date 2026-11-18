@@ -2,7 +2,25 @@
 
 from dataclasses import dataclass
 
-from domain import Playlist, Screen
+from domain import MediaAsset, Playlist, PlaylistItem, Screen
+
+
+@dataclass(frozen=True)
+class PlaylistMediaWithUrl:
+    media: MediaAsset
+    media_url: str
+
+
+@dataclass(frozen=True)
+class AssignedPlaylistItem:
+    item: PlaylistItem
+    media: PlaylistMediaWithUrl
+
+
+@dataclass(frozen=True)
+class AssignedPlaylistResult:
+    playlist: Playlist
+    items: list[AssignedPlaylistItem]
 
 
 @dataclass(frozen=True)

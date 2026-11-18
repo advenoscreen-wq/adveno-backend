@@ -15,6 +15,7 @@ from adapters.repositories.screen_sync_state_repository import (
     SqlAlchemyScreenSyncStateRepository,
 )
 from domain import Screen, ScreenCredential, ScreenSyncState
+from domain.value_object import ScreenStatus
 
 pytestmark = pytest.mark.integration
 
@@ -86,5 +87,43 @@ async def test_sync_check_rejects_invalid_or_missing_device_credential(
 ) -> None:
     for headers in ({}, {"Authorization": "Bearer invalid-device-secret"}):
         response = await client.post("/api/v1/screens/sync-check", headers=headers)
-        assert response.status_code == 401
-        assert response.json()["error"]["code"] == "INVALID_SCREEN_CREDENTIAL"
+        assert response.status_code == (401 if not headers else 404)
+        assert response.json()["error"]["code"] == (
+            "INVALID_SCREEN_CREDENTIAL" if not headers else "SCREEN_NOT_FOUND"
+        )
+
+
+@pytest.mark.parametrize(
+    ("screen_status", "revoked", "expected_code"),
+    [
+        (ScreenStatus.ACTIVE, True, "SCREEN_DISCONNECTED"),
+        (ScreenStatus.INACTIVE, False, "SCREEN_DISCONNECTED"),
+    ],
+)
+async def test_sync_check_requires_screen_to_be_connected(
+    client: httpx.AsyncClient,
+    integration_session: AsyncSession,
+    screen_status: ScreenStatus,
+    revoked: bool,
+    expected_code: str,
+) -> None:
+    raw_credential = f"device-{screen_status}-{revoked}"
+    screen = await SqlAlchemyScreenRepository(integration_session).save(
+        Screen(user_id=USER_ID, name="Disconnected TV", status=screen_status)
+    )
+    credential = ScreenCredential(
+        screen_id=screen.id,
+        credential_hash=hashlib.sha256(raw_credential.encode()).hexdigest(),
+    )
+    if revoked:
+        credential.revoke()
+    await SqlAlchemyScreenCredentialRepository(integration_session).save(credential)
+    await integration_session.commit()
+
+    response = await client.post(
+        "/api/v1/screens/sync-check",
+        headers={"Authorization": f"Bearer {raw_credential}"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == expected_code

@@ -10,6 +10,7 @@ from drivers.routers.screens.dependencies import (
     CheckScreenSync,
     DeleteScreen,
     DisconnectScreen,
+    GetAssignedPlaylist,
     GetScreen,
     ListScreens,
     ScreenDeviceCredential,
@@ -19,6 +20,7 @@ from drivers.routers.screens.dependencies import (
 from drivers.schemas.common import PaginationResponse
 from drivers.schemas.playlists import PlaylistResponse
 from drivers.schemas.screens import (
+    AssignedScreenPlaylistResponse,
     AssignPlaylistRequest,
     ScreenListItemResponse,
     ScreenPlaylistAssignmentResponse,
@@ -43,6 +45,22 @@ async def check_screen_sync(
     """Record a TV heartbeat and report whether it needs to fetch updates."""
     need_sync = await use_case(credential=credential)
     return ScreenSyncCheckResponse(need_sync=need_sync)
+
+
+@router.get(
+    "/assigned-playlist",
+    response_model=AssignedScreenPlaylistResponse | None,
+    status_code=status.HTTP_200_OK,
+)
+async def get_assigned_playlist(
+    use_case: GetAssignedPlaylist,
+    credential: ScreenDeviceCredential,
+) -> AssignedScreenPlaylistResponse | None:
+    """Return the authenticated TV's assigned playlist and media metadata."""
+    result = await use_case(credential=credential)
+    if result is None:
+        return None
+    return AssignedScreenPlaylistResponse.model_validate(result, from_attributes=True)
 
 
 @router.get(
