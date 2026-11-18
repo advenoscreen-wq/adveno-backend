@@ -30,7 +30,7 @@ class ScreenSyncStateModel(Base):
     screen_id: Mapped[UUID] = mapped_column(
         UUIDColumn, ForeignKey("screens.id", ondelete="CASCADE"), primary_key=True
     )
-    desired_revision: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
+    desired_revision: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     applied_revision: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     sync_status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING")
     last_sync_started_at: Mapped[datetime | None] = mapped_column(Timestamp)

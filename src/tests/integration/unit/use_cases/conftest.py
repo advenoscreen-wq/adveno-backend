@@ -31,6 +31,7 @@ from ports.repositories.screen_pairing_session_repository import (
     ScreenPairingSessionRepository,
 )
 from ports.repositories.screen_repository import ScreenRepository
+from ports.repositories.screen_sync_state_repository import ScreenSyncStateRepository
 from ports.repositories.user_repository import UserRepository
 from ports.services.cache_service import CacheService
 from ports.services.oauth_provider import OAuthProvider
@@ -128,6 +129,18 @@ def screen_credential_repo() -> Mock:
 
 
 @pytest.fixture
+def screen_sync_state_repo() -> Mock:
+    repository = _async_port_mock(
+        ScreenSyncStateRepository,
+        "get_by_screen_id",
+        "increment_desired_revision",
+        "save",
+        "update",
+    )
+    return repository
+
+
+@pytest.fixture
 def google_callback_use_case(
     oauth_provider: Mock,
     cache_service: Mock,
@@ -175,11 +188,13 @@ def create_paired_screen_use_case(
     pairing_session_repo: Mock,
     screen_repo: Mock,
     screen_credential_repo: Mock,
+    screen_sync_state_repo: Mock,
 ) -> CreatePairedScreenUseCase:
     return CreatePairedScreenUseCase(
         pairing_session_repository=pairing_session_repo,
         screen_repository=screen_repo,
         screen_credential_repository=screen_credential_repo,
+        screen_sync_state_repository=screen_sync_state_repo,
     )
 
 

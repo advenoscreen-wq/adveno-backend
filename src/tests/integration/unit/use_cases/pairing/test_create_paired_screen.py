@@ -28,6 +28,7 @@ async def test_creates_screen_and_assigns_it_to_paired_new_screen_session(
     pairing_session_repo: Mock,
     screen_repo: Mock,
     screen_credential_repo: Mock,
+    screen_sync_state_repo: Mock,
 ) -> None:
     pairing_token = "tv-pairing-token"
     session = ScreenPairingSession.create(
@@ -60,6 +61,11 @@ async def test_creates_screen_and_assigns_it_to_paired_new_screen_session(
     assert session.status is PairingSessionStatus.PAIRED
     assert session.paired_at is not None
     screen_credential_repo.save.assert_awaited_once()
+    screen_sync_state_repo.save.assert_awaited_once()
+    sync_state = screen_sync_state_repo.save.await_args.args[0]
+    assert sync_state.screen_id == screen.id
+    assert sync_state.desired_revision == 0
+    assert sync_state.applied_revision == 0
     stored_credential = screen_credential_repo.save.await_args.args[0]
     assert (
         stored_credential.credential_hash

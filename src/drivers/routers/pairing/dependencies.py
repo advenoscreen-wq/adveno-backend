@@ -12,6 +12,9 @@ from adapters.repositories.screen_pairing_session_repository import (
     SqlAlchemyScreenPairingSessionRepository,
 )
 from adapters.repositories.screen_repository import SqlAlchemyScreenRepository
+from adapters.repositories.screen_sync_state_repository import (
+    SqlAlchemyScreenSyncStateRepository,
+)
 from application.use_cases.pairing.approve_screen_pairing_session_use_case import (
     ApproveScreenPairingSessionUseCase,
 )
@@ -36,6 +39,7 @@ from ports.repositories.screen_pairing_session_repository import (
     ScreenPairingSessionRepository,
 )
 from ports.repositories.screen_repository import ScreenRepository
+from ports.repositories.screen_sync_state_repository import ScreenSyncStateRepository
 
 
 def get_screen_pairing_session_repository(
@@ -57,6 +61,13 @@ def get_screen_credential_repository(
 ) -> ScreenCredentialRepository:
     """Build the request-scoped screen credential repository."""
     return SqlAlchemyScreenCredentialRepository(session)
+
+
+def get_screen_sync_state_repository(
+    session: Annotated[AsyncSession, Depends(session_dependency)],
+) -> ScreenSyncStateRepository:
+    """Build the request-scoped screen sync state repository."""
+    return SqlAlchemyScreenSyncStateRepository(session)
 
 
 ScreenPairingSessionRepositoryDependency = Annotated[
@@ -94,12 +105,16 @@ def get_create_paired_screen_use_case(
     credential_repository: Annotated[
         ScreenCredentialRepository, Depends(get_screen_credential_repository)
     ],
+    sync_state_repository: Annotated[
+        ScreenSyncStateRepository, Depends(get_screen_sync_state_repository)
+    ],
 ) -> CreatePairedScreenUseCase:
     """Build the screen registration use case for completed pairings."""
     return CreatePairedScreenUseCase(
         pairing_session_repository=pairing_session_repository,
         screen_repository=screen_repository,
         screen_credential_repository=credential_repository,
+        screen_sync_state_repository=sync_state_repository,
     )
 
 

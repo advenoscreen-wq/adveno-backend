@@ -14,7 +14,7 @@ class ScreenSyncState:
     """Latest synchronization state for a screen."""
 
     screen_id: UUID
-    desired_revision: int = 1
+    desired_revision: int = 0
     applied_revision: int = 0
     sync_status: SyncStatus = SyncStatus.PENDING
     id: UUID = field(default_factory=uuid4)

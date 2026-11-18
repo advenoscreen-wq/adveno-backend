@@ -15,12 +15,14 @@ from application.use_cases.pairing.commands import CreatePairedScreenCommand
 from application.use_cases.pairing.results import CreatePairedScreenResult
 from domain.entities.screen import Screen
 from domain.entities.screen_credential import ScreenCredential
+from domain.entities.screen_sync_state import ScreenSyncState
 from domain.value_object import PairingSessionStatus, PairingType
 from ports.repositories.screen_credential_repository import ScreenCredentialRepository
 from ports.repositories.screen_pairing_session_repository import (
     ScreenPairingSessionRepository,
 )
 from ports.repositories.screen_repository import ScreenRepository
+from ports.repositories.screen_sync_state_repository import ScreenSyncStateRepository
 
 
 class CreatePairedScreenUseCase:
@@ -30,10 +32,12 @@ class CreatePairedScreenUseCase:
         pairing_session_repository: ScreenPairingSessionRepository,
         screen_repository: ScreenRepository,
         screen_credential_repository: ScreenCredentialRepository,
+        screen_sync_state_repository: ScreenSyncStateRepository,
     ) -> None:
         self._pairing_session_repository = pairing_session_repository
         self._screen_repository = screen_repository
         self._screen_credential_repository = screen_credential_repository
+        self._screen_sync_state_repository = screen_sync_state_repository
 
     async def __call__(self, command: CreatePairedScreenCommand) -> CreatePairedScreenResult:
         token_hash = hashlib.sha256(command.pairing_token.encode("utf-8")).hexdigest()
@@ -67,6 +71,7 @@ class CreatePairedScreenUseCase:
                 app_version=command.app_version,
             )
         )
+        await self._screen_sync_state_repository.save(ScreenSyncState(screen_id=screen.id))
         raw_credential = secrets.token_urlsafe(32)
         credential_hash = hashlib.sha256(raw_credential.encode("utf-8")).hexdigest()
         await self._screen_credential_repository.save(

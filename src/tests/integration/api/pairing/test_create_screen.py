@@ -13,6 +13,7 @@ from drivers.database.models.entities import (
     ScreenCredentialModel,
     ScreenModel,
     ScreenPairingSessionModel,
+    ScreenSyncStateModel,
 )
 
 pytestmark = pytest.mark.integration
@@ -69,6 +70,11 @@ async def test_create_screen_requires_connecting_session(
     assert screen.device_model == body["device_model"]
     assert screen.app_version == body["app_version"]
     assert screen.screen_code == result["screen_code"]
+    sync_state = await integration_session.get(ScreenSyncStateModel, screen_id)
+    assert sync_state is not None
+    assert sync_state.desired_revision == 0
+    assert sync_state.applied_revision == 0
+    assert sync_state.sync_status == "PENDING"
     credential = await integration_session.scalar(
         select(ScreenCredentialModel).where(ScreenCredentialModel.screen_id == screen_id)
     )
