@@ -65,6 +65,7 @@ testpaths = ["src/tests"]
 asyncio_mode = "auto"
 markers = [
     "integration: tests requiring a running PostgreSQL database",
+    "e2e: full user workflow tests with the application and supporting services",
 ]
 
 [tool.coverage.run]
