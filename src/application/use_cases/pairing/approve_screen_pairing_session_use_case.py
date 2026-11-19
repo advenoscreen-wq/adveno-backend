@@ -100,7 +100,7 @@ class ApproveScreenPairingSessionUseCase:
                 code="SCREEN_ID_NOT_ALLOWED",
             )
 
-        session.mark_as_connecting()
+        session.mark_as_connecting(approved_by_user_id=command.user_id)
 
     async def _approve_existing_screen(
         self,
@@ -125,7 +125,10 @@ class ApproveScreenPairingSessionUseCase:
         if not screen.is_active:
             raise PairingScreenNotEligibleError()
 
-        session.mark_as_connecting(screen_id=screen.id)
+        session.mark_as_connecting(
+            screen_id=screen.id,
+            approved_by_user_id=command.user_id,
+        )
 
         active_credential = (
             await self._screen_credential_repository.get_active_credential_by_screen(

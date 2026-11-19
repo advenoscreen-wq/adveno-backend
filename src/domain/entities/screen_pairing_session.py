@@ -21,6 +21,7 @@ class ScreenPairingSession:
     id: UUID = field(default_factory=uuid4)
     paired_at: datetime | None = None
     created_at: datetime = field(default_factory=utc_now)
+    approved_by_user_id: UUID | None = None
 
     def __post_init__(self) -> None:
         try:
@@ -99,6 +100,7 @@ class ScreenPairingSession:
         self,
         *,
         screen_id: UUID | None = None,
+        approved_by_user_id: UUID | None = None,
         at: datetime | None = None,
     ) -> None:
         if self.status is not PairingSessionStatus.PENDING or self.is_expired(at=at):
@@ -111,6 +113,7 @@ class ScreenPairingSession:
         elif screen_id is None:
             raise InvalidStateTransition("reconnect pairing requires a selected screen")
         self.screen_id = screen_id
+        self.approved_by_user_id = approved_by_user_id
         self.status = PairingSessionStatus.CONNECTING
 
     def mark_as_paired(

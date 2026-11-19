@@ -38,3 +38,9 @@ class ListScreensResult:
     has_prev: bool
     limit: int
     page: int
+
+
+@dataclass(frozen=True)
+class ScreenSyncCheckResult:
+    need_sync: bool
+    desired_revision: int

@@ -9,6 +9,7 @@ import pytest
 
 from application.exceptions.pairing import (
     PairingApprovalValidationError,
+    PairingOwnerNotSetError,
     PairingScreenAlreadyCreatedError,
     PairingSessionExpiredError,
     PairingSessionNotFoundError,
@@ -36,15 +37,14 @@ async def test_creates_screen_and_assigns_it_to_paired_new_screen_session(
         timedelta(minutes=10),
         pairing_type=PairingType.NEW_SCREEN,
     )
-    session.mark_as_connecting()
-    pairing_session_repo.get_by_id.return_value = session
     user_id = uuid4()
+    session.mark_as_connecting(approved_by_user_id=user_id)
+    pairing_session_repo.get_by_id.return_value = session
 
     result = await create_paired_screen_use_case(
         CreatePairedScreenCommand(
             session_id=session.id,
             pairing_token=pairing_token,
-            user_id=user_id,
             name="Lobby TV",
             device_model="Model X",
             app_version="1.2.3",
@@ -94,7 +94,30 @@ async def test_does_not_create_second_screen_for_pairing_session_with_screen_id(
 
     with pytest.raises(PairingScreenAlreadyCreatedError):
         await create_paired_screen_use_case(
-            CreatePairedScreenCommand(session.id, token, uuid4(), "Duplicate TV")
+            CreatePairedScreenCommand(session.id, token, "Duplicate TV")
+        )
+
+    screen_repo.save.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_does_not_create_screen_when_approved_owner_was_not_recorded(
+    create_paired_screen_use_case: CreatePairedScreenUseCase,
+    pairing_session_repo: Mock,
+    screen_repo: Mock,
+) -> None:
+    token = "ownerless-pairing-token"
+    session = ScreenPairingSession.create(
+        hashlib.sha256(token.encode()).hexdigest(),
+        timedelta(minutes=10),
+        pairing_type=PairingType.NEW_SCREEN,
+    )
+    session.mark_as_connecting()
+    pairing_session_repo.get_by_id.return_value = session
+
+    with pytest.raises(PairingOwnerNotSetError):
+        await create_paired_screen_use_case(
+            CreatePairedScreenCommand(session_id=session.id, pairing_token=token, name="TV")
         )
 
     screen_repo.save.assert_not_awaited()
@@ -120,7 +143,6 @@ async def test_does_not_create_screen_before_session_is_paired(
             CreatePairedScreenCommand(
                 session_id=session.id,
                 pairing_token=pairing_token,
-                user_id=uuid4(),
                 name="Lobby TV",
             )
         )
@@ -151,7 +173,6 @@ async def test_rejects_session_id_and_pairing_token_that_do_not_match(
             CreatePairedScreenCommand(
                 session_id=session.id,
                 pairing_token="different-token",
-                user_id=uuid4(),
                 name="Lobby TV",
             )
         )
@@ -174,7 +195,6 @@ async def test_rejects_unknown_pairing_session(
             CreatePairedScreenCommand(
                 session_id=uuid4(),
                 pairing_token="unknown-token",
-                user_id=uuid4(),
                 name="Lobby TV",
             )
         )
@@ -204,7 +224,7 @@ async def test_does_not_create_screen_for_expired_session(
 
     with pytest.raises(PairingSessionExpiredError):
         await create_paired_screen_use_case(
-            CreatePairedScreenCommand(session.id, token, uuid4(), "Lobby TV")
+            CreatePairedScreenCommand(session.id, token, "Lobby TV")
         )
 
     screen_repo.save.assert_not_awaited()
@@ -223,13 +243,11 @@ async def test_rejects_reconnect_session_for_new_screen_creation(
         timedelta(minutes=10),
         pairing_type=PairingType.RECONNECT_EXISTING,
     )
-    session.mark_as_connecting(screen_id=existing_screen_id)
+    session.mark_as_connecting(screen_id=existing_screen_id, approved_by_user_id=uuid4())
     pairing_session_repo.get_by_id.return_value = session
 
     with pytest.raises(PairingApprovalValidationError) as error:
-        await create_paired_screen_use_case(
-            CreatePairedScreenCommand(session.id, token, uuid4(), "New TV")
-        )
+        await create_paired_screen_use_case(CreatePairedScreenCommand(session.id, token, "New TV"))
 
     assert error.value.code == "NEW_SCREEN_PAIRING_REQUIRED"
     screen_repo.save.assert_not_awaited()

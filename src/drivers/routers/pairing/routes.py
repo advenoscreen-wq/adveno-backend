@@ -102,7 +102,6 @@ async def approve_screen_pairing_session(
 async def create_paired_screen(
     session_id: UUID,
     body: CreatePairedScreenRequest,
-    current_user: CurrentUser,
     use_case: CreatePairedScreen,
     pairing_token: str = Header(alias="X-Pairing-Token"),
 ) -> CreatePairedScreenResponse:
@@ -110,7 +109,6 @@ async def create_paired_screen(
         CreatePairedScreenCommand(
             session_id=session_id,
             pairing_token=pairing_token,
-            user_id=current_user.id,
             name=body.name,
             device_model=body.device_model,
             app_version=body.app_version,

@@ -18,6 +18,9 @@ from adapters.repositories.screen_playlist_assignment_repository import (
 from adapters.repositories.screen_repository import SqlAlchemyScreenRepository
 from adapters.repositories.screen_sync_state_repository import SqlAlchemyScreenSyncStateRepository
 from application.exceptions.authentication import InvalidScreenCredentialError
+from application.use_cases.screens.acknowledge_screen_sync_use_case import (
+    AcknowledgeScreenSyncUseCase,
+)
 from application.use_cases.screens.assign_playlist_use_case import AssignPlaylistUseCase
 from application.use_cases.screens.check_screen_sync_use_case import CheckScreenSyncUseCase
 from application.use_cases.screens.delete_screen_use_case import DeleteScreenUseCase
@@ -27,8 +30,12 @@ from application.use_cases.screens.get_assigned_playlist_use_case import (
 )
 from application.use_cases.screens.get_screen_use_case import GetScreenUseCase
 from application.use_cases.screens.list_screens_use_case import ListScreensUseCase
+from application.use_cases.screens.logout_screen_use_case import LogoutScreenUseCase
 from application.use_cases.screens.unassign_playlist_use_case import UnassignPlaylistUseCase
 from application.use_cases.screens.update_screen_use_case import UpdateScreenUseCase
+from application.use_cases.screens.verify_screen_credential_use_case import (
+    VerifyScreenCredentialUseCase,
+)
 from drivers.database.database import session_dependency
 from drivers.routers.dependencies import SettingsDependency
 from drivers.routers.media.dependencies import StorageServiceDependency
@@ -122,6 +129,30 @@ def get_check_screen_sync_use_case(
 CheckScreenSync = Annotated[
     CheckScreenSyncUseCase,
     Depends(get_check_screen_sync_use_case),
+]
+
+
+def get_acknowledge_screen_sync_use_case(
+    screen_repository: ScreenRepositoryDependency,
+    credential_repository: Annotated[
+        ScreenCredentialRepository,
+        Depends(get_screen_credential_repository),
+    ],
+    sync_state_repository: Annotated[
+        ScreenSyncStateRepository,
+        Depends(get_sync_state_repository),
+    ],
+) -> AcknowledgeScreenSyncUseCase:
+    return AcknowledgeScreenSyncUseCase(
+        screen_repository=screen_repository,
+        credential_repository=credential_repository,
+        sync_state_repository=sync_state_repository,
+    )
+
+
+AcknowledgeScreenSync = Annotated[
+    AcknowledgeScreenSyncUseCase,
+    Depends(get_acknowledge_screen_sync_use_case),
 ]
 
 
@@ -275,4 +306,39 @@ def get_disconnect_screen_use_case(
 DisconnectScreen = Annotated[
     DisconnectScreenUseCase,
     Depends(get_disconnect_screen_use_case),
+]
+
+
+def get_logout_screen_use_case(
+    screen_repository: ScreenRepositoryDependency,
+    credential_repository: Annotated[
+        ScreenCredentialRepository,
+        Depends(get_screen_credential_repository),
+    ],
+) -> LogoutScreenUseCase:
+    return LogoutScreenUseCase(
+        screen_repository=screen_repository,
+        credential_repository=credential_repository,
+    )
+
+
+LogoutScreen = Annotated[LogoutScreenUseCase, Depends(get_logout_screen_use_case)]
+
+
+def get_verify_screen_credential_use_case(
+    screen_repository: ScreenRepositoryDependency,
+    credential_repository: Annotated[
+        ScreenCredentialRepository,
+        Depends(get_screen_credential_repository),
+    ],
+) -> VerifyScreenCredentialUseCase:
+    return VerifyScreenCredentialUseCase(
+        screen_repository=screen_repository,
+        credential_repository=credential_repository,
+    )
+
+
+VerifyScreenCredential = Annotated[
+    VerifyScreenCredentialUseCase,
+    Depends(get_verify_screen_credential_use_case),
 ]

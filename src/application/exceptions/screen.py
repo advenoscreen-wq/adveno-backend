@@ -41,3 +41,21 @@ class InvalidScreenUpdateError(AppError):
             code="INVALID_SCREEN_UPDATE",
             status_code=422,
         )
+
+
+class ScreenSyncStateNotFoundError(AppError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Synchronization state was not found for this screen.",
+            code="SCREEN_SYNC_STATE_NOT_FOUND",
+            status_code=404,
+        )
+
+
+class SyncRevisionConflictError(AppError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Applied revision cannot be greater than the screen's desired revision.",
+            code="SYNC_REVISION_CONFLICT",
+            status_code=409,
+        )

@@ -57,6 +57,17 @@ class ScreenPlaylistAssignmentResponse(BaseModel):
 
 class ScreenSyncCheckResponse(BaseModel):
     need_sync: bool
+    desired_revision: int
+
+
+class ScreenCredentialVerificationResponse(BaseModel):
+    valid: bool
+
+
+class ScreenSyncAcknowledgmentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    applied_revision: int = Field(ge=0)
 
 
 class ScreenPlaylistMediaResponse(BaseModel):

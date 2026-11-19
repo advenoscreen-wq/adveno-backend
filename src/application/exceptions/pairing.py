@@ -41,6 +41,15 @@ class PairingSessionNotPairedError(AppError):
         )
 
 
+class PairingOwnerNotSetError(AppError):
+    def __init__(self) -> None:
+        super().__init__(
+            "The pairing session has no approved screen owner. Start a new pairing session.",
+            code="PAIRING_OWNER_NOT_SET",
+            status_code=409,
+        )
+
+
 class PairingScreenAlreadyCreatedError(AppError):
     def __init__(self) -> None:
         super().__init__(

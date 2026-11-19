@@ -47,7 +47,7 @@ async def test_sync_check_returns_need_sync_and_records_heartbeat(
     )
 
     assert response.status_code == 200
-    assert response.json() == {"need_sync": True}
+    assert response.json() == {"need_sync": True, "desired_revision": 3}
     updated_screen = await screen_repository.get_by_id(screen.id)
     updated_credential = await credential_repository.get_by_id(credential.id)
     assert updated_screen is not None and updated_screen.last_seen_at is not None
@@ -79,7 +79,37 @@ async def test_sync_check_returns_false_when_revisions_match(
     )
 
     assert response.status_code == 200
-    assert response.json() == {"need_sync": False}
+    assert response.json() == {"need_sync": False, "desired_revision": 2}
+
+
+async def test_sync_check_creates_missing_state_as_full_sync_required(
+    client: httpx.AsyncClient,
+    integration_session: AsyncSession,
+) -> None:
+    raw_credential = "missing-sync-state-device"
+    screen = await SqlAlchemyScreenRepository(integration_session).save(
+        Screen(user_id=USER_ID, name="Legacy TV")
+    )
+    await SqlAlchemyScreenCredentialRepository(integration_session).save(
+        ScreenCredential(
+            screen_id=screen.id,
+            credential_hash=hashlib.sha256(raw_credential.encode()).hexdigest(),
+        )
+    )
+    await integration_session.commit()
+
+    response = await client.post(
+        "/api/v1/screens/sync-check",
+        headers={"Authorization": f"Bearer {raw_credential}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"need_sync": True, "desired_revision": 1}
+    state = await SqlAlchemyScreenSyncStateRepository(integration_session).get_by_screen_id(
+        screen.id
+    )
+    assert state is not None
+    assert (state.desired_revision, state.applied_revision) == (1, 0)
 
 
 async def test_sync_check_rejects_invalid_or_missing_device_credential(

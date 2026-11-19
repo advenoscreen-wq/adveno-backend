@@ -103,7 +103,9 @@ async def test_playlist_workflow_reaches_tv_and_deletion_removes_assignment(
         headers={"Authorization": f"Bearer {device_credential}"},
     )
     assert sync_check.status_code == 200
-    assert sync_check.json() == {"need_sync": True}
+    sync_result = sync_check.json()
+    assert sync_result["need_sync"] is True
+    assert sync_result["desired_revision"] > 0
 
     deleted = await client.delete(
         f"/api/v1/playlists/{playlist_id}",

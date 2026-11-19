@@ -39,10 +39,11 @@ async def test_new_screen_approval_marks_connecting_without_creating_screen(
     )
     pairing_session_repo.get_by_token_hash.return_value = session
 
+    user_id = uuid4()
     result = await approve_screen_pairing_session_use_case(
         ApproveScreenPairingSessionCommand(
             pairing_token=pairing_token,
-            user_id=uuid4(),
+            user_id=user_id,
         )
     )
 
@@ -50,6 +51,7 @@ async def test_new_screen_approval_marks_connecting_without_creating_screen(
     assert result.paired_at is None
     assert result.screen_id is None
     assert session.paired_at is None
+    assert session.approved_by_user_id == user_id
     screen_repo.save.assert_not_awaited()
     screen_credential_repo.get_active_credential_by_screen.assert_not_awaited()
     screen_credential_repo.save.assert_not_awaited()

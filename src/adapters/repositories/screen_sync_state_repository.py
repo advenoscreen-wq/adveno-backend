@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,8 +27,13 @@ class SqlAlchemyScreenSyncStateRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_by_screen_id(self, screen_id: UUID) -> ScreenSyncState | None:
-        model = await self.session.get(ScreenSyncStateModel, screen_id)
+    async def get_by_screen_id(
+        self, screen_id: UUID, *, for_update: bool = False
+    ) -> ScreenSyncState | None:
+        statement = select(ScreenSyncStateModel).where(ScreenSyncStateModel.screen_id == screen_id)
+        if for_update:
+            statement = statement.with_for_update()
+        model = await self.session.scalar(statement)
         return to_sync_state(model) if model else None
 
     async def increment_desired_revision(self, screen_id: UUID) -> ScreenSyncState:

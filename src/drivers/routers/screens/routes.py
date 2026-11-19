@@ -4,8 +4,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query, Response, status
 
+from application.use_cases.screens.commands import AcknowledgeScreenSyncCommand
 from drivers.routers.dependencies import CurrentUser
 from drivers.routers.screens.dependencies import (
+    AcknowledgeScreenSync,
     AssignPlaylist,
     CheckScreenSync,
     DeleteScreen,
@@ -13,24 +15,42 @@ from drivers.routers.screens.dependencies import (
     GetAssignedPlaylist,
     GetScreen,
     ListScreens,
+    LogoutScreen,
     ScreenDeviceCredential,
     UnassignPlaylist,
     UpdateScreen,
+    VerifyScreenCredential,
 )
 from drivers.schemas.common import PaginationResponse
 from drivers.schemas.playlists import PlaylistResponse
 from drivers.schemas.screens import (
     AssignedScreenPlaylistResponse,
     AssignPlaylistRequest,
+    ScreenCredentialVerificationResponse,
     ScreenListItemResponse,
     ScreenPlaylistAssignmentResponse,
     ScreenResponse,
+    ScreenSyncAcknowledgmentRequest,
     ScreenSyncCheckResponse,
     UpdateScreenRequest,
     UpdateScreenResponse,
 )
 
 router = APIRouter(prefix="/screens", tags=["screens"])
+
+
+@router.post(
+    "/credential/verify",
+    response_model=ScreenCredentialVerificationResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def verify_screen_credential(
+    use_case: VerifyScreenCredential,
+    credential: ScreenDeviceCredential,
+) -> ScreenCredentialVerificationResponse:
+    """Check whether the TV's stored device credential is still active."""
+    await use_case(credential=credential)
+    return ScreenCredentialVerificationResponse(valid=True)
 
 
 @router.post(
@@ -43,8 +63,11 @@ async def check_screen_sync(
     credential: ScreenDeviceCredential,
 ) -> ScreenSyncCheckResponse:
     """Record a TV heartbeat and report whether it needs to fetch updates."""
-    need_sync = await use_case(credential=credential)
-    return ScreenSyncCheckResponse(need_sync=need_sync)
+    result = await use_case(credential=credential)
+    return ScreenSyncCheckResponse(
+        need_sync=result.need_sync,
+        desired_revision=result.desired_revision,
+    )
 
 
 @router.get(
@@ -61,6 +84,33 @@ async def get_assigned_playlist(
     if result is None:
         return None
     return AssignedScreenPlaylistResponse.model_validate(result, from_attributes=True)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout_screen(
+    use_case: LogoutScreen,
+    credential: ScreenDeviceCredential,
+) -> Response:
+    """Revoke this device credential and end the screen session."""
+    await use_case(credential=credential)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/sync-acknowledgments",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def acknowledge_screen_sync(
+    body: ScreenSyncAcknowledgmentRequest,
+    use_case: AcknowledgeScreenSync,
+    credential: ScreenDeviceCredential,
+) -> Response:
+    """Persist the revision the TV reports as successfully applied."""
+    await use_case(
+        credential=credential,
+        command=AcknowledgeScreenSyncCommand(applied_revision=body.applied_revision),
+    )
+    return Response(status_code=status.HTTP_202_ACCEPTED)
 
 
 @router.get(

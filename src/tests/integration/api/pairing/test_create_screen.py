@@ -32,12 +32,13 @@ async def test_create_screen_requires_connecting_session(
     )
     session_id = UUID(created.json()["session_id"])
     pairing_token = created.json()["pairing_token"]
-    headers = {**AUTH_HEADERS, "X-Pairing-Token": pairing_token}
+    pairing_headers = {"X-Pairing-Token": pairing_token}
+    management_headers = {**AUTH_HEADERS, **pairing_headers}
     body = {"name": "Lobby TV", "device_model": "Model X", "app_version": "1.2.3"}
 
     pending = await pairing_client.post(
         f"/api/v1/pairing/sessions/{session_id}/screen",
-        headers=headers,
+        headers=pairing_headers,
         json=body,
     )
     assert pending.status_code == 409
@@ -45,13 +46,13 @@ async def test_create_screen_requires_connecting_session(
     assert await integration_session.scalar(select(ScreenModel.id).limit(1)) is None
     approved = await pairing_client.post(
         "/api/v1/pairing/sessions/approve",
-        headers=headers,
+        headers=management_headers,
         json={},
     )
     assert approved.status_code == 200
     response = await pairing_client.post(
         f"/api/v1/pairing/sessions/{session_id}/screen",
-        headers=headers,
+        headers=pairing_headers,
         json=body,
     )
     assert response.status_code == 201
@@ -89,25 +90,13 @@ async def test_create_screen_requires_connecting_session(
     assert session.screen_id == screen_id
 
 
-async def test_create_screen_requires_authorization(
-    pairing_client: httpx.AsyncClient,
-) -> None:
-    response = await pairing_client.post(
-        f"/api/v1/pairing/sessions/{UUID(int=1)}/screen",
-        headers={"X-Pairing-Token": "token"},
-        json={"name": "TV"},
-    )
-
-    assert response.status_code == 401
-
-
 @pytest.mark.parametrize("body", [{}, {"name": "TV", "unexpected": True}])
 async def test_create_screen_rejects_invalid_body(
     pairing_client: httpx.AsyncClient, body: dict[str, str]
 ) -> None:
     response = await pairing_client.post(
         f"/api/v1/pairing/sessions/{UUID(int=1)}/screen",
-        headers={**AUTH_HEADERS, "X-Pairing-Token": "token"},
+        headers={"X-Pairing-Token": "token"},
         json=body,
     )
 
@@ -119,7 +108,6 @@ async def test_create_screen_requires_pairing_token(
 ) -> None:
     response = await pairing_client.post(
         f"/api/v1/pairing/sessions/{UUID(int=1)}/screen",
-        headers=AUTH_HEADERS,
         json={"name": "TV"},
     )
 

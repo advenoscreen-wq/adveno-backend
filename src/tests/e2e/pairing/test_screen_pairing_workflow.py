@@ -145,7 +145,7 @@ async def test_new_screen_pairing_completes_tv_and_dashboard_workflow(
         headers={"Authorization": f"Bearer {raw_credential}"},
     )
     assert initial_sync.status_code == 200
-    assert initial_sync.json() == {"need_sync": False}
+    assert initial_sync.json() == {"need_sync": False, "desired_revision": 0}
 
     replay = await pairing_client.post(
         f"{PAIRING_SESSIONS_URL}/{session_id}/screen",
@@ -267,7 +267,9 @@ async def test_reconnect_pairing_preserves_screen_and_rotates_credential(
         headers={"Authorization": f"Bearer {new_credential}"},
     )
     assert new_tv_request.status_code == 200
-    assert new_tv_request.json() == {"need_sync": True}
+    sync_result = new_tv_request.json()
+    assert sync_result["need_sync"] is True
+    assert sync_result["desired_revision"] > 0
 
 
 async def test_pairing_edge_cases_reject_invalid_auth_tokens_and_expired_sessions(

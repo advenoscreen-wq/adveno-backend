@@ -262,6 +262,15 @@ Revokes the screen's active TV credential and preserves its screen record,
 playlist assignment, and history. Returns `204 NO CONTENT`; disconnecting an
 already disconnected screen is idempotent.
 
+### `POST /api/v1/screens/logout`
+
+The screen authenticates with its own credential in the `Authorization:
+Bearer <screen-credential>` header. The endpoint revokes that credential and
+returns `204 NO CONTENT`; it preserves the screen and related data. The TV
+should clear its local credential after success. Invalid credentials return
+`401 INVALID_SCREEN_CREDENTIAL` or `404 SCREEN_NOT_FOUND`; revoked credentials
+and inactive screens return `401 SCREEN_DISCONNECTED`.
+
 ### `DELETE /api/v1/screens/{screen_id}`
 
 Permanently deletes an owned screen and its dependent credentials, pairing
@@ -388,12 +397,14 @@ longer pending return `409 PAIRING_SESSION_NOT_PENDING`.
 
 ### `POST /api/v1/pairing/sessions/{session_id}/screen`
 
-Creates a screen for a `CONNECTING` `NEW_SCREEN` session. Requires an authenticated
-user and the session's raw token in `X-Pairing-Token`. The request is rejected
-unless the session is `CONNECTING`; reconnect sessions and sessions that already
-have a screen cannot create another one. The backend assigns the screen ID and
-screen code, creates its credential, and changes the session to `PAIRED` with
-`paired_at` in the same transaction.
+Creates a screen for a `CONNECTING` `NEW_SCREEN` session. The TV authenticates
+using the session ID and raw token in `X-Pairing-Token`; no app-user Supabase
+token is required. The screen owner comes from the management user who approved
+the pairing session. The request is rejected unless the session is `CONNECTING`;
+reconnect sessions and sessions that already have a screen cannot create
+another one. The backend assigns the screen ID and screen code, creates its
+credential, and changes the session to `PAIRED` with `paired_at` in the same
+transaction.
 
 ```json
 {
@@ -418,6 +429,67 @@ This changes the session to `PAIRED` and sets `paired_at`. Calling this endpoint
 again for a completed session rotates the credential again.
 
 **Response `200`:** `screen_id` and the new raw `credential`.
+
+## Screen device endpoints
+
+Device endpoints require the TV credential in
+`Authorization: Bearer <screen-credential>`. A missing or malformed credential
+returns `401 INVALID_SCREEN_CREDENTIAL`; a credential with no screen returns
+`404 SCREEN_NOT_FOUND`; a revoked credential or inactive screen returns
+`401 SCREEN_DISCONNECTED`.
+
+### `POST /api/v1/screens/credential/verify`
+
+Checks whether the TV's locally stored credential still belongs to an active
+screen. Requires `Authorization: Bearer <screen-credential>` and no request
+body. On success, also records the heartbeat and credential use time.
+
+**Response `200`:**
+
+```json
+{"valid": true}
+```
+
+Unknown credentials return `404 SCREEN_NOT_FOUND`. Revoked credentials or
+inactive screens return `401 SCREEN_DISCONNECTED`; missing or malformed
+credentials return `401 INVALID_SCREEN_CREDENTIAL`.
+
+### `POST /api/v1/screens/sync-check`
+
+Records a heartbeat and returns whether the TV needs to synchronize, together
+with the desired revision to acknowledge after applying that snapshot.
+
+**Response `200`:**
+
+```json
+{"need_sync": true, "desired_revision": 4}
+```
+
+### `POST /api/v1/screens/sync-acknowledgments`
+
+Acknowledges that the TV has successfully applied the supplied revision.
+Requires a screen credential. `applied_revision` must be a non-negative
+integer no greater than the latest `desired_revision` returned by sync-check.
+Future revisions return `409 SYNC_REVISION_CONFLICT`; stale acknowledgments
+are idempotently ignored. A missing synchronization row returns
+`404 SCREEN_SYNC_STATE_NOT_FOUND`. The endpoint updates synchronization state
+and the screen's last successful sync time.
+
+**Request:**
+
+```json
+{"applied_revision": 4}
+```
+
+**Response `202`:** empty body.
+
+### `POST /api/v1/screens/logout`
+
+Revokes the screen credential used for this request and returns
+`204 NO CONTENT`. The credential record is retained for history, and the screen
+and its playlist/sync data remain. The TV should clear the local credential
+after success and return to pairing. Subsequent use of the revoked credential
+returns `401 SCREEN_DISCONNECTED`.
 
 ## Health endpoints
 

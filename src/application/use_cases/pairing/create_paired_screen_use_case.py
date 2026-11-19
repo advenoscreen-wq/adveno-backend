@@ -6,6 +6,7 @@ import secrets
 
 from application.exceptions.pairing import (
     PairingApprovalValidationError,
+    PairingOwnerNotSetError,
     PairingScreenAlreadyCreatedError,
     PairingSessionExpiredError,
     PairingSessionNotFoundError,
@@ -60,12 +61,14 @@ class CreatePairedScreenUseCase:
                 "Only NEW_SCREEN pairing sessions can create a screen.",
                 code="NEW_SCREEN_PAIRING_REQUIRED",
             )
+        if session.approved_by_user_id is None:
+            raise PairingOwnerNotSetError()
         if session.screen_id is not None:
             raise PairingScreenAlreadyCreatedError()
 
         screen = await self._screen_repository.save(
             Screen(
-                user_id=command.user_id,
+                user_id=session.approved_by_user_id,
                 name=command.name,
                 device_model=command.device_model,
                 app_version=command.app_version,

@@ -9,7 +9,9 @@ from domain import (
 
 
 class ScreenSyncStateRepository(Protocol):
-    async def get_by_screen_id(self, screen_id: UUID) -> ScreenSyncState | None: ...
+    async def get_by_screen_id(
+        self, screen_id: UUID, *, for_update: bool = False
+    ) -> ScreenSyncState | None: ...
 
     async def increment_desired_revision(self, screen_id: UUID) -> ScreenSyncState: ...
 

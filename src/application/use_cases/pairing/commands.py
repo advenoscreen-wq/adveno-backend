@@ -33,7 +33,6 @@ class ApproveScreenPairingSessionCommand:
 class CreatePairedScreenCommand:
     session_id: UUID
     pairing_token: str
-    user_id: UUID
     name: str
     device_model: str | None = None
     app_version: str | None = None

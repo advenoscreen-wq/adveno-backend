@@ -48,6 +48,7 @@ class ScreenPairingSessionModel(Base):
         UUIDColumn, ForeignKey("screens.id", ondelete="CASCADE"), nullable=True
     )
     pairing_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    approved_by_user_id: Mapped[UUID | None] = mapped_column(UUIDColumn, nullable=True)
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="PENDING", server_default="PENDING"
     )

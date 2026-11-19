@@ -26,6 +26,13 @@ from application.use_cases.pairing.issue_paired_screen_credential_use_case impor
 from application.use_cases.pairing.verify_screen_pairing_session_use_case import (
     VerifyScreenPairingSessionUseCase,
 )
+from application.use_cases.screens.acknowledge_screen_sync_use_case import (
+    AcknowledgeScreenSyncUseCase,
+)
+from application.use_cases.screens.logout_screen_use_case import LogoutScreenUseCase
+from application.use_cases.screens.verify_screen_credential_use_case import (
+    VerifyScreenCredentialUseCase,
+)
 from ports.repositories.screen_credential_repository import ScreenCredentialRepository
 from ports.repositories.screen_pairing_session_repository import (
     ScreenPairingSessionRepository,
@@ -117,6 +124,7 @@ def screen_repo() -> Mock:
 def screen_credential_repo() -> Mock:
     repository = _async_port_mock(
         ScreenCredentialRepository,
+        "get_by_hash",
         "get_by_id",
         "get_active_credential_by_screen",
         "get_active_credentials_by_screen",
@@ -228,3 +236,38 @@ def verify_screen_pairing_session_use_case(
     pairing_session_repo: Mock,
 ) -> VerifyScreenPairingSessionUseCase:
     return VerifyScreenPairingSessionUseCase(repository=pairing_session_repo)
+
+
+@pytest.fixture
+def logout_screen_use_case(
+    screen_repo: Mock,
+    screen_credential_repo: Mock,
+) -> LogoutScreenUseCase:
+    return LogoutScreenUseCase(
+        screen_repository=screen_repo,
+        credential_repository=screen_credential_repo,
+    )
+
+
+@pytest.fixture
+def acknowledge_screen_sync_use_case(
+    screen_repo: Mock,
+    screen_credential_repo: Mock,
+    screen_sync_state_repo: Mock,
+) -> AcknowledgeScreenSyncUseCase:
+    return AcknowledgeScreenSyncUseCase(
+        screen_repository=screen_repo,
+        credential_repository=screen_credential_repo,
+        sync_state_repository=screen_sync_state_repo,
+    )
+
+
+@pytest.fixture
+def verify_screen_credential_use_case(
+    screen_repo: Mock,
+    screen_credential_repo: Mock,
+) -> VerifyScreenCredentialUseCase:
+    return VerifyScreenCredentialUseCase(
+        screen_repository=screen_repo,
+        credential_repository=screen_credential_repo,
+    )

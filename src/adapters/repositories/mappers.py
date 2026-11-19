@@ -65,6 +65,7 @@ def to_pairing_session(model: ScreenPairingSessionModel) -> ScreenPairingSession
     return ScreenPairingSession(
         id=model.id,
         screen_id=model.screen_id,
+        approved_by_user_id=model.approved_by_user_id,
         pairing_type=PairingType(model.pairing_type) if model.pairing_type else None,
         status=PairingSessionStatus(model.status),
         token_hash=model.token_hash,
@@ -186,6 +187,7 @@ def apply_screen(entity: Screen, model: ScreenModel) -> None:
 def apply_pairing_session(entity: ScreenPairingSession, model: ScreenPairingSessionModel) -> None:
     model.id = entity.id
     model.screen_id = entity.screen_id
+    model.approved_by_user_id = entity.approved_by_user_id
     model.pairing_type = entity.pairing_type.value if entity.pairing_type else None
     model.status = entity.status.value
     model.token_hash = entity.token_hash

@@ -64,6 +64,23 @@ class ScreenSyncState:
         self.last_error = None
         self.updated_at = completed_at
 
+    def acknowledge_revision(self, applied_revision: int, *, at: datetime | None = None) -> None:
+        if applied_revision < self.applied_revision:
+            raise DomainError("applied revision cannot move backward")
+        if applied_revision > self.desired_revision:
+            raise DomainError("applied revision cannot exceed desired revision")
+        if applied_revision == self.applied_revision:
+            return
+        completed_at = at or utc_now()
+        validate_timestamp(completed_at)
+        self.applied_revision = applied_revision
+        self.sync_status = (
+            SyncStatus.SYNCED if applied_revision == self.desired_revision else SyncStatus.PENDING
+        )
+        self.last_successful_sync_at = completed_at
+        self.last_error = None
+        self.updated_at = completed_at
+
     def mark_sync_failed(self, error: str, *, at: datetime | None = None) -> None:
         if not error.strip():
             raise DomainError("sync failure reason is required")
