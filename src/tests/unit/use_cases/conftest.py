@@ -224,10 +224,12 @@ def get_screen_pairing_session_status_use_case(
 def issue_paired_screen_credential_use_case(
     pairing_session_repo: Mock,
     screen_credential_repo: Mock,
+    screen_sync_state_repo: Mock,
 ) -> IssuePairedScreenCredentialUseCase:
     return IssuePairedScreenCredentialUseCase(
         pairing_session_repository=pairing_session_repo,
         screen_credential_repository=screen_credential_repo,
+        screen_sync_state_repository=screen_sync_state_repo,
     )
 
 

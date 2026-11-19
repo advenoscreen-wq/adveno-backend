@@ -74,7 +74,9 @@ class CreatePairedScreenUseCase:
                 app_version=command.app_version,
             )
         )
-        await self._screen_sync_state_repository.save(ScreenSyncState(screen_id=screen.id))
+        await self._screen_sync_state_repository.save(
+            ScreenSyncState(screen_id=screen.id, desired_revision=1)
+        )
         raw_credential = secrets.token_urlsafe(32)
         credential_hash = hashlib.sha256(raw_credential.encode("utf-8")).hexdigest()
         await self._screen_credential_repository.save(

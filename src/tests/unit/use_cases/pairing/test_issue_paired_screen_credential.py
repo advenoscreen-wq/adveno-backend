@@ -36,6 +36,7 @@ async def test_issue_credential_revokes_old_credential_and_completes_reconnect(
     issue_paired_screen_credential_use_case: IssuePairedScreenCredentialUseCase,
     pairing_session_repo: Mock,
     screen_credential_repo: Mock,
+    screen_sync_state_repo: Mock,
 ) -> None:
     token = "credential-pairing-token"
     session = _connecting_reconnect_session(token)
@@ -60,6 +61,7 @@ async def test_issue_credential_revokes_old_credential_and_completes_reconnect(
     assert stored.credential_hash == hashlib.sha256(result.credential.encode()).hexdigest()
     assert result.credential != stored.credential_hash
     pairing_session_repo.update.assert_awaited_once_with(session)
+    screen_sync_state_repo.increment_desired_revision.assert_awaited_once_with(session.screen_id)
 
 
 @pytest.mark.asyncio

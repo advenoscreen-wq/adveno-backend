@@ -64,7 +64,7 @@ async def test_creates_screen_and_assigns_it_to_paired_new_screen_session(
     screen_sync_state_repo.save.assert_awaited_once()
     sync_state = screen_sync_state_repo.save.await_args.args[0]
     assert sync_state.screen_id == screen.id
-    assert sync_state.desired_revision == 0
+    assert sync_state.desired_revision == 1
     assert sync_state.applied_revision == 0
     stored_credential = screen_credential_repo.save.await_args.args[0]
     assert (

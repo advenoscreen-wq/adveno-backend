@@ -17,6 +17,7 @@ from ports.repositories.screen_credential_repository import ScreenCredentialRepo
 from ports.repositories.screen_pairing_session_repository import (
     ScreenPairingSessionRepository,
 )
+from ports.repositories.screen_sync_state_repository import ScreenSyncStateRepository
 
 
 class IssuePairedScreenCredentialUseCase:
@@ -25,9 +26,11 @@ class IssuePairedScreenCredentialUseCase:
         *,
         pairing_session_repository: ScreenPairingSessionRepository,
         screen_credential_repository: ScreenCredentialRepository,
+        screen_sync_state_repository: ScreenSyncStateRepository,
     ) -> None:
         self._pairing_session_repository = pairing_session_repository
         self._screen_credential_repository = screen_credential_repository
+        self._screen_sync_state_repository = screen_sync_state_repository
 
     async def __call__(
         self, command: IssuePairedScreenCredentialCommand
@@ -72,6 +75,7 @@ class IssuePairedScreenCredentialUseCase:
                 credential_hash=credential_hash,
             )
         )
+        await self._screen_sync_state_repository.increment_desired_revision(session.screen_id)
         if session.status is PairingSessionStatus.CONNECTING:
             session.mark_as_paired()
             await self._pairing_session_repository.update(session)

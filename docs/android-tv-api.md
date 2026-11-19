@@ -335,7 +335,7 @@ Response schema: `CreatePairedScreenResponse`.
 The screen owner is taken from the user who approved the pairing session, not
 from a token or field supplied by the TV. The backend generates the screen UUID
 and human-readable screen code,
-creates an initial sync state (`desired_revision=0`, `applied_revision=0`),
+creates an initial sync state (`desired_revision=1`, `applied_revision=0`),
 creates one active credential, assigns the screen to the pairing session, and
 sets session status to `PAIRED` with `paired_at`. Only the credential hash is
 stored. The raw `credential` is returned once and must be stored securely by
@@ -369,7 +369,9 @@ Response schema: `IssuePairedScreenCredentialResponse`.
 The session must reference a screen and be `CONNECTING` or `PAIRED`. Any
 existing active credential for that screen is revoked before the new one is
 created; credentials are retained for history and only one active credential
-is allowed. A `CONNECTING` session becomes `PAIRED` with `paired_at`. Calling
+is allowed. Issuing a credential increments the screen's desired sync revision
+so the newly connected TV fetches its assigned content. A `CONNECTING` session
+becomes `PAIRED` with `paired_at`. Calling
 the endpoint again on a `PAIRED` session is allowed and rotates the credential
 again; clients should not retry blindly after receiving a successful response.
 
@@ -397,8 +399,10 @@ The response has two fields: `need_sync` (Boolean) and `desired_revision`
 (non-negative integer). `need_sync` is true when the screen has no sync-state
 row or when `desired_revision > applied_revision`; otherwise it is false. If
 the state row is missing, this check creates one with desired revision `1` so
-the screen performs a full sync. A newly created screen with its initial
-`0/0` revisions receives `need_sync: false` until content/configuration changes.
+the screen performs a full sync. A newly created screen starts with revisions
+`1/0`, so it receives `need_sync: true` until it acknowledges revision 1. When
+`need_sync` is true, the backend marks the state `SYNCING` and records
+`last_sync_started_at`; repeated checks during that sync do not reset its time.
 
 Each successful call validates the credential, updates `screen.last_seen_at`
 and `credential.last_used_at`, then reads sync state. Errors: `401
@@ -568,12 +572,16 @@ beyond these stored fields is implemented in the API.
 
 ## Synchronization behavior and current gaps
 
-- A new screen's sync row starts with `desired_revision=0` and
-  `applied_revision=0` (`sync_status=PENDING`).
+- A new screen's sync row starts with `desired_revision=1` and
+  `applied_revision=0` (`sync_status=PENDING`), requiring an initial full sync.
+- Issuing or rotating a screen credential increments `desired_revision`, so a
+  reconnecting TV fetches the current assigned content.
 - Playlist assignment/removal, playlist updates/deletion, and media replacement
   for media used by an assigned playlist increment a screen's desired revision.
 - `POST /screens/sync-check` returns the derived Boolean and current
-  `desired_revision`; it does not return `applied_revision` or `sync_status`.
+  `desired_revision`; when sync is needed it sets `sync_status=SYNCING` and
+  records `last_sync_started_at`. It does not return `applied_revision` or
+  `sync_status`.
 - `GET /screens/assigned-playlist` returns the current full playlist snapshot;
   there is no revision parameter, delta endpoint, ETag, or conditional request
   contract.

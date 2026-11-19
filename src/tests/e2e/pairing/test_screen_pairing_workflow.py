@@ -131,7 +131,7 @@ async def test_new_screen_pairing_completes_tv_and_dashboard_workflow(
     assert screen.app_version == "2.1"
     assert screen.screen_code == screen_body["screen_code"]
     assert sync_state is not None
-    assert (sync_state.desired_revision, sync_state.applied_revision) == (0, 0)
+    assert (sync_state.desired_revision, sync_state.applied_revision) == (1, 0)
     assert session is not None
     assert session.status == PairingSessionStatus.PAIRED.value
     assert session.screen_id == screen_id
@@ -145,7 +145,7 @@ async def test_new_screen_pairing_completes_tv_and_dashboard_workflow(
         headers={"Authorization": f"Bearer {raw_credential}"},
     )
     assert initial_sync.status_code == 200
-    assert initial_sync.json() == {"need_sync": False, "desired_revision": 0}
+    assert initial_sync.json() == {"need_sync": True, "desired_revision": 1}
 
     replay = await pairing_client.post(
         f"{PAIRING_SESSIONS_URL}/{session_id}/screen",

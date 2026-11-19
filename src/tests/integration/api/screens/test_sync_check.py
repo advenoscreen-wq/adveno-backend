@@ -15,7 +15,7 @@ from adapters.repositories.screen_sync_state_repository import (
     SqlAlchemyScreenSyncStateRepository,
 )
 from domain import Screen, ScreenCredential, ScreenSyncState
-from domain.value_object import ScreenStatus
+from domain.value_object import ScreenStatus, SyncStatus
 
 pytestmark = pytest.mark.integration
 
@@ -52,6 +52,13 @@ async def test_sync_check_returns_need_sync_and_records_heartbeat(
     updated_credential = await credential_repository.get_by_id(credential.id)
     assert updated_screen is not None and updated_screen.last_seen_at is not None
     assert updated_credential is not None and updated_credential.last_used_at is not None
+    integration_session.expire_all()
+    sync_state = await SqlAlchemyScreenSyncStateRepository(integration_session).get_by_screen_id(
+        screen.id
+    )
+    assert sync_state is not None
+    assert sync_state.sync_status is SyncStatus.SYNCING
+    assert sync_state.last_sync_started_at is not None
 
 
 async def test_sync_check_returns_false_when_revisions_match(
@@ -80,6 +87,12 @@ async def test_sync_check_returns_false_when_revisions_match(
 
     assert response.status_code == 200
     assert response.json() == {"need_sync": False, "desired_revision": 2}
+    state = await SqlAlchemyScreenSyncStateRepository(integration_session).get_by_screen_id(
+        screen.id
+    )
+    assert state is not None
+    assert state.sync_status is SyncStatus.PENDING
+    assert state.last_sync_started_at is None
 
 
 async def test_sync_check_creates_missing_state_as_full_sync_required(
@@ -110,6 +123,8 @@ async def test_sync_check_creates_missing_state_as_full_sync_required(
     )
     assert state is not None
     assert (state.desired_revision, state.applied_revision) == (1, 0)
+    assert state.sync_status is SyncStatus.SYNCING
+    assert state.last_sync_started_at is not None
 
 
 async def test_sync_check_rejects_invalid_or_missing_device_credential(

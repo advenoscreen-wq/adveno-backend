@@ -123,11 +123,15 @@ def get_issue_paired_screen_credential_use_case(
     credential_repository: Annotated[
         ScreenCredentialRepository, Depends(get_screen_credential_repository)
     ],
+    sync_state_repository: Annotated[
+        ScreenSyncStateRepository, Depends(get_screen_sync_state_repository)
+    ],
 ) -> IssuePairedScreenCredentialUseCase:
     """Build the paired screen credential rotation use case."""
     return IssuePairedScreenCredentialUseCase(
         pairing_session_repository=pairing_session_repository,
         screen_credential_repository=credential_repository,
+        screen_sync_state_repository=sync_state_repository,
     )
 
 

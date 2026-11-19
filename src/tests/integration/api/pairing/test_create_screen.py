@@ -73,7 +73,7 @@ async def test_create_screen_requires_connecting_session(
     assert screen.screen_code == result["screen_code"]
     sync_state = await integration_session.get(ScreenSyncStateModel, screen_id)
     assert sync_state is not None
-    assert sync_state.desired_revision == 0
+    assert sync_state.desired_revision == 1
     assert sync_state.applied_revision == 0
     assert sync_state.sync_status == "PENDING"
     credential = await integration_session.scalar(
