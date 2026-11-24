@@ -72,17 +72,15 @@ async def check_screen_sync(
 
 @router.get(
     "/assigned-playlist",
-    response_model=AssignedScreenPlaylistResponse | None,
+    response_model=AssignedScreenPlaylistResponse,
     status_code=status.HTTP_200_OK,
 )
 async def get_assigned_playlist(
     use_case: GetAssignedPlaylist,
     credential: ScreenDeviceCredential,
-) -> AssignedScreenPlaylistResponse | None:
+) -> AssignedScreenPlaylistResponse:
     """Return the authenticated TV's assigned playlist and media metadata."""
     result = await use_case(credential=credential)
-    if result is None:
-        return None
     return AssignedScreenPlaylistResponse.model_validate(result, from_attributes=True)
 
 

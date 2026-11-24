@@ -117,7 +117,7 @@ async def test_playlist_workflow_reaches_tv_and_deletion_removes_assignment(
         headers={"Authorization": f"Bearer {device_credential}"},
     )
     assert tv_playlist_after_delete.status_code == 200
-    assert tv_playlist_after_delete.json() is None
+    assert tv_playlist_after_delete.json() == {"playlist": None, "items": []}
     missing_playlist = await client.get(
         f"/api/v1/playlists/{playlist_id}",
         headers=AUTH_HEADERS,

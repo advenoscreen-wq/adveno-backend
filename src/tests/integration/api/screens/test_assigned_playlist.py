@@ -83,8 +83,8 @@ async def test_assigned_playlist_returns_media_metadata_and_public_url(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["id"] == str(playlist.id)
-    assert body["version"] == playlist.version
+    assert body["playlist"]["id"] == str(playlist.id)
+    assert body["playlist"]["version"] == playlist.version
     assert len(body["items"]) == 1
     item = body["items"][0]
     assert item["position"] == 1
@@ -117,7 +117,7 @@ async def test_assigned_playlist_returns_null_when_screen_has_no_assignment(
     )
 
     assert response.status_code == 200
-    assert response.json() is None
+    assert response.json() == {"playlist": None, "items": []}
 
 
 async def test_assigned_playlist_rejects_invalid_screen_credential(

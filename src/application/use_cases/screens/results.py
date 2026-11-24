@@ -19,7 +19,7 @@ class AssignedPlaylistItem:
 
 @dataclass(frozen=True)
 class AssignedPlaylistResult:
-    playlist: Playlist
+    playlist: Playlist | None
     items: list[AssignedPlaylistItem]
 
 

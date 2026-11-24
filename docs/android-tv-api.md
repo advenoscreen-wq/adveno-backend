@@ -439,7 +439,9 @@ Missing or malformed Bearer credentials return `401 INVALID_SCREEN_CREDENTIAL`.
 
 Response schema: `AssignedScreenPlaylistResponse | null`. If no active playlist
 assignment exists (or its playlist cannot be found for the screen owner), the
-body is JSON `null`.
+body is JSON `null`. Treat this `200` response as a valid empty state: do not
+retry it as an API failure or show a synchronization error. The TV can display
+its No Ads state and offer the normal Sync Now action.
 
 Example response:
 

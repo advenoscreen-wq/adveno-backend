@@ -92,9 +92,13 @@ class ScreenPlaylistItemResponse(BaseModel):
     media: ScreenPlaylistMediaResponse
 
 
+class PlaylistSummaryResponse(BaseModel):
+    id: UUID
+    name: str
+    description: str | None
+    version: int
+
+
 class AssignedScreenPlaylistResponse(BaseModel):
-    id: UUID = Field(validation_alias=AliasPath("playlist", "id"))
-    name: str = Field(validation_alias=AliasPath("playlist", "name"))
-    description: str | None = Field(validation_alias=AliasPath("playlist", "description"))
-    version: int = Field(validation_alias=AliasPath("playlist", "version"))
+    playlist: PlaylistSummaryResponse | None
     items: list[ScreenPlaylistItemResponse]
