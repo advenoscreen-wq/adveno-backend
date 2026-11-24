@@ -78,6 +78,24 @@ class ScreenSyncAcknowledgmentRequest(BaseModel):
     applied_revision: int = Field(ge=0)
 
 
+class CreateScreenAdminSessionResponse(BaseModel):
+    session_id: UUID
+    pin: str = Field(pattern=r"^\d{6}$")
+    expires_at: AwareDatetime
+
+
+class VerifyScreenAdminSessionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    pin: str = Field(pattern=r"^\d{6}$")
+
+
+class VerifyScreenAdminSessionResponse(BaseModel):
+    session_id: UUID
+    session_token: str
+    expires_at: AwareDatetime
+
+
 class ScreenPlaybackEventRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

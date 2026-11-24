@@ -5,6 +5,9 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from adapters.repositories.screen_admin_session_repository import (
+    SqlAlchemyScreenAdminSessionRepository,
+)
 from adapters.repositories.screen_credential_repository import (
     SqlAlchemyScreenCredentialRepository,
 )
@@ -34,6 +37,7 @@ from application.use_cases.pairing.verify_screen_pairing_session_use_case import
     VerifyScreenPairingSessionUseCase,
 )
 from drivers.database.database import session_dependency
+from ports.repositories.screen_admin_session_repository import ScreenAdminSessionRepository
 from ports.repositories.screen_credential_repository import ScreenCredentialRepository
 from ports.repositories.screen_pairing_session_repository import (
     ScreenPairingSessionRepository,
@@ -61,6 +65,12 @@ def get_screen_credential_repository(
 ) -> ScreenCredentialRepository:
     """Build the request-scoped screen credential repository."""
     return SqlAlchemyScreenCredentialRepository(session)
+
+
+def get_screen_admin_session_repository(
+    session: Annotated[AsyncSession, Depends(session_dependency)],
+) -> ScreenAdminSessionRepository:
+    return SqlAlchemyScreenAdminSessionRepository(session)
 
 
 def get_screen_sync_state_repository(
@@ -126,12 +136,17 @@ def get_issue_paired_screen_credential_use_case(
     sync_state_repository: Annotated[
         ScreenSyncStateRepository, Depends(get_screen_sync_state_repository)
     ],
+    admin_session_repository: Annotated[
+        ScreenAdminSessionRepository,
+        Depends(get_screen_admin_session_repository),
+    ],
 ) -> IssuePairedScreenCredentialUseCase:
     """Build the paired screen credential rotation use case."""
     return IssuePairedScreenCredentialUseCase(
         pairing_session_repository=pairing_session_repository,
         screen_credential_repository=credential_repository,
         screen_sync_state_repository=sync_state_repository,
+        screen_admin_session_repository=admin_session_repository,
     )
 
 

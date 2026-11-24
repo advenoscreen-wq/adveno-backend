@@ -6,24 +6,30 @@ from fastapi import APIRouter, Query, Response, status
 
 from application.use_cases.screens.commands import (
     AcknowledgeScreenSyncCommand,
+    CreateScreenAdminSessionCommand,
     PlaybackEventData,
     ReportScreenPlaybackEventsCommand,
+    VerifyScreenAdminSessionCommand,
 )
 from drivers.routers.dependencies import CurrentUser
 from drivers.routers.screens.dependencies import (
     AcknowledgeScreenSync,
     AssignPlaylist,
     CheckScreenSync,
+    CreateScreenAdminSession,
     DeleteScreen,
     DisconnectScreen,
     GetAssignedPlaylist,
     GetScreen,
     ListScreens,
     LogoutScreen,
+    ProtectedScreenAdminSessionDependency,
     ReportScreenPlaybackEvents,
+    RevokeScreenAdminSession,
     ScreenDeviceCredential,
     UnassignPlaylist,
     UpdateScreen,
+    VerifyScreenAdminSession,
     VerifyScreenCredential,
 )
 from drivers.schemas.common import PaginationResponse
@@ -31,6 +37,7 @@ from drivers.schemas.playlists import PlaylistResponse
 from drivers.schemas.screens import (
     AssignedScreenPlaylistResponse,
     AssignPlaylistRequest,
+    CreateScreenAdminSessionResponse,
     ReportScreenPlaybackEventsRequest,
     ReportScreenPlaybackEventsResponse,
     ScreenCredentialVerificationResponse,
@@ -41,6 +48,8 @@ from drivers.schemas.screens import (
     ScreenSyncCheckResponse,
     UpdateScreenRequest,
     UpdateScreenResponse,
+    VerifyScreenAdminSessionRequest,
+    VerifyScreenAdminSessionResponse,
 )
 
 router = APIRouter(prefix="/screens", tags=["screens"])
@@ -94,10 +103,66 @@ async def get_assigned_playlist(
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout_screen(
     use_case: LogoutScreen,
-    credential: ScreenDeviceCredential,
+    authorization: ProtectedScreenAdminSessionDependency,
 ) -> Response:
-    """Revoke this device credential and end the screen session."""
-    await use_case(credential=credential)
+    """Revoke the TV credential after protected-session authorization."""
+    await use_case(authorization)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/{screen_id}/admin-session",
+    response_model=CreateScreenAdminSessionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_screen_admin_session(
+    screen_id: UUID,
+    current_user: CurrentUser,
+    use_case: CreateScreenAdminSession,
+) -> CreateScreenAdminSessionResponse:
+    """Generate a one-time PIN for the selected screen's settings."""
+    result = await use_case(
+        CreateScreenAdminSessionCommand(screen_id=screen_id, user_id=current_user.id)
+    )
+    return CreateScreenAdminSessionResponse(
+        session_id=result.session_id,
+        pin=result.pin,
+        expires_at=result.expires_at,
+    )
+
+
+@router.post(
+    "/admin-session/verify",
+    response_model=VerifyScreenAdminSessionResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def verify_screen_admin_session(
+    body: VerifyScreenAdminSessionRequest,
+    use_case: VerifyScreenAdminSession,
+    credential: ScreenDeviceCredential,
+) -> VerifyScreenAdminSessionResponse:
+    """Verify a dashboard PIN and issue a temporary TV settings token."""
+    result = await use_case(
+        credential=credential,
+        command=VerifyScreenAdminSessionCommand(pin=body.pin),
+    )
+    return VerifyScreenAdminSessionResponse(
+        session_id=result.session_id,
+        session_token=result.session_token,
+        expires_at=result.expires_at,
+    )
+
+
+@router.post(
+    "/admin-session/revoke",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def revoke_screen_admin_session(
+    use_case: RevokeScreenAdminSession,
+    authorization: ProtectedScreenAdminSessionDependency,
+) -> Response:
+    """Revoke this TV's temporary settings access."""
+    await use_case(authorization)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

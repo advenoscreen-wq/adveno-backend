@@ -27,10 +27,14 @@ class SqlAlchemyScreenRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_by_id(self, screen_id: UUID, *, user_id: UUID | None = None) -> Screen | None:
+    async def get_by_id(
+        self, screen_id: UUID, *, user_id: UUID | None = None, for_update: bool = False
+    ) -> Screen | None:
         statement = select(ScreenModel).where(ScreenModel.id == screen_id)
         if user_id is not None:
             statement = statement.where(ScreenModel.user_id == user_id)
+        if for_update:
+            statement = statement.with_for_update()
         model = await self.session.scalar(statement)
         return to_screen(model) if model else None
 

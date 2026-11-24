@@ -6,6 +6,7 @@ from domain.entities.media_asset import MediaAsset
 from domain.entities.playlist import Playlist
 from domain.entities.playlist_item import PlaylistItem
 from domain.entities.screen import Screen
+from domain.entities.screen_admin_session import ScreenAdminSession
 from domain.entities.screen_credential import ScreenCredential
 from domain.entities.screen_pairing_session import ScreenPairingSession
 from domain.entities.screen_playback_event import ScreenPlaybackEvent
@@ -20,6 +21,7 @@ __all__ = [
     "Playlist",
     "PlaylistItem",
     "Screen",
+    "ScreenAdminSession",
     "ScreenCredential",
     "ScreenPairingSession",
     "ScreenPlaybackEvent",

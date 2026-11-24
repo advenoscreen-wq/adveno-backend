@@ -42,6 +42,18 @@ class RedisCacheService:
     async def pop(self, key: str) -> str | None:
         return cast(str | None, await self._execute("pop", self._redis.getdel(self._key(key))))
 
+    async def increment_with_ttl(self, key: str, *, ttl_seconds: int) -> int:
+        script = (
+            "local count = redis.call('INCR', KEYS[1]); "
+            "if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]); end; "
+            "return count"
+        )
+        result = await self._execute(
+            "increment_with_ttl",
+            self._redis.eval(script, 1, self._key(key), ttl_seconds),
+        )
+        return int(result)
+
     async def close(self) -> None:
         await self._execute("close", self._redis.aclose())
 

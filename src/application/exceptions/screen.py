@@ -59,3 +59,30 @@ class SyncRevisionConflictError(AppError):
             code="SYNC_REVISION_CONFLICT",
             status_code=409,
         )
+
+
+class ExpiredScreenAdminSessionError(AppError):
+    def __init__(self) -> None:
+        super().__init__(
+            "The protected session expired or was revoked. Enter the PIN again.",
+            code="EXPIRED_SESSION",
+            status_code=401,
+        )
+
+
+class InvalidScreenAdminPinError(AppError):
+    def __init__(self) -> None:
+        super().__init__(
+            "The admin PIN is invalid.",
+            code="INVALID_ADMIN_PIN",
+            status_code=401,
+        )
+
+
+class ScreenAdminPinRateLimitError(AppError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Too many PIN attempts. Wait before trying again.",
+            code="ADMIN_PIN_RATE_LIMITED",
+            status_code=429,
+        )

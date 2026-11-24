@@ -6,6 +6,7 @@ from drivers.database.models.media_asset import MediaAssetModel
 from drivers.database.models.playlist import PlaylistModel
 from drivers.database.models.playlist_item import PlaylistItemModel
 from drivers.database.models.screen import ScreenModel
+from drivers.database.models.screen_admin_session import ScreenAdminSessionModel
 from drivers.database.models.screen_credential import ScreenCredentialModel
 from drivers.database.models.screen_pairing_session import ScreenPairingSessionModel
 from drivers.database.models.screen_playback_event import ScreenPlaybackEventModel
@@ -21,6 +22,7 @@ __all__ = [
     "PlaylistModel",
     "ScreenCredentialModel",
     "ScreenModel",
+    "ScreenAdminSessionModel",
     "ScreenPairingSessionModel",
     "ScreenPlaybackEventModel",
     "ScreenPlaylistAssignmentModel",

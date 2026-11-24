@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from adapters.repositories.user_repository import SqlAlchemyUserRepository
 from adapters.services.oauth_service.supabase_oauth import SupabaseOAuthAdapter
+from adapters.services.pin_hasher import ScryptPinHasher
 from adapters.services.redis_cache_service import RedisCacheService
 from application.exceptions.authentication import (
     AuthenticationRequiredError,
@@ -18,6 +19,7 @@ from config.settings import Settings, get_settings
 from domain import User
 from drivers.core.access_token import decode_access_token_user_id
 from drivers.database.database import check_database, session_dependency
+from ports.services.pin_hasher import PinHasher
 
 
 def get_session_factory(request: Request) -> async_sessionmaker[AsyncSession]:
@@ -113,6 +115,18 @@ async def get_authenticated_access_token(
 
 SettingsDependency = Annotated[Settings, Depends(get_settings)]
 CacheService = Annotated[RedisCacheService, Depends(get_cache_service)]
+
+
+@lru_cache(maxsize=1)
+def _pin_hasher() -> ScryptPinHasher:
+    return ScryptPinHasher()
+
+
+def get_pin_hasher() -> PinHasher:
+    return _pin_hasher()
+
+
+PinHasherDependency = Annotated[PinHasher, Depends(get_pin_hasher)]
 OAuthProvider = Annotated[SupabaseOAuthAdapter, Depends(get_oauth_provider)]
 DatabaseReady = Annotated[bool, Depends(get_database_ready)]
 CurrentUser = Annotated[User, Depends(get_current_user)]

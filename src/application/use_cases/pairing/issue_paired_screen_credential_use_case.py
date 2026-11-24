@@ -11,8 +11,10 @@ from application.exceptions.pairing import (
 )
 from application.use_cases.pairing.commands import IssuePairedScreenCredentialCommand
 from application.use_cases.pairing.results import IssuePairedScreenCredentialResult
+from domain.entities.common import utc_now
 from domain.entities.screen_credential import ScreenCredential
 from domain.value_object import PairingSessionStatus
+from ports.repositories.screen_admin_session_repository import ScreenAdminSessionRepository
 from ports.repositories.screen_credential_repository import ScreenCredentialRepository
 from ports.repositories.screen_pairing_session_repository import (
     ScreenPairingSessionRepository,
@@ -27,10 +29,12 @@ class IssuePairedScreenCredentialUseCase:
         pairing_session_repository: ScreenPairingSessionRepository,
         screen_credential_repository: ScreenCredentialRepository,
         screen_sync_state_repository: ScreenSyncStateRepository,
+        screen_admin_session_repository: ScreenAdminSessionRepository,
     ) -> None:
         self._pairing_session_repository = pairing_session_repository
         self._screen_credential_repository = screen_credential_repository
         self._screen_sync_state_repository = screen_sync_state_repository
+        self._screen_admin_session_repository = screen_admin_session_repository
 
     async def __call__(
         self, command: IssuePairedScreenCredentialCommand
@@ -76,6 +80,10 @@ class IssuePairedScreenCredentialUseCase:
             )
         )
         await self._screen_sync_state_repository.increment_desired_revision(session.screen_id)
+        await self._screen_admin_session_repository.revoke_all_for_screen(
+            session.screen_id,
+            at=utc_now(),
+        )
         if session.status is PairingSessionStatus.CONNECTING:
             session.mark_as_paired()
             await self._pairing_session_repository.update(session)

@@ -1,28 +1,23 @@
-"""Revoke the authenticated screen's device credential."""
+"""Revoke the authenticated screen credential and protected settings session."""
 
-from application.use_cases.screens.screen_device_auth import (
-    authenticate_screen_device_with_credential,
-)
+from application.use_cases.screens.results import ProtectedScreenAdminSession
+from domain.entities.common import utc_now
+from ports.repositories.screen_admin_session_repository import ScreenAdminSessionRepository
 from ports.repositories.screen_credential_repository import ScreenCredentialRepository
-from ports.repositories.screen_repository import ScreenRepository
 
 
 class LogoutScreenUseCase:
     def __init__(
         self,
         *,
-        screen_repository: ScreenRepository,
         credential_repository: ScreenCredentialRepository,
+        admin_session_repository: ScreenAdminSessionRepository,
     ) -> None:
-        self._screen_repository = screen_repository
         self._credential_repository = credential_repository
+        self._admin_session_repository = admin_session_repository
 
-    async def __call__(self, *, credential: str) -> None:
-        _, device_credential = await authenticate_screen_device_with_credential(
-            credential=credential,
-            screen_repository=self._screen_repository,
-            credential_repository=self._credential_repository,
-            persist_credential=False,
-        )
-        device_credential.revoke()
-        await self._credential_repository.update(device_credential)
+    async def __call__(self, authorization: ProtectedScreenAdminSession) -> None:
+        authorization.credential.revoke()
+        authorization.admin_session.revoke(at=utc_now())
+        await self._credential_repository.update(authorization.credential)
+        await self._admin_session_repository.update(authorization.admin_session)

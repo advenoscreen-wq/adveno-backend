@@ -22,7 +22,9 @@ The Android TV client uses these device-facing operations:
 | Verify a stored screen credential on app startup | `POST /api/v1/screens/credential/verify` | Screen credential as Bearer token |
 | Fetch assigned playlist and media metadata | `GET /api/v1/screens/assigned-playlist` | Screen credential as Bearer token |
 | Acknowledge an applied sync revision | `POST /api/v1/screens/sync-acknowledgments` | Screen credential as Bearer token |
-| Log out this screen and revoke its credential | `POST /api/v1/screens/logout` | Screen credential as Bearer token |
+| Verify dashboard PIN and start a temporary settings session | `POST /api/v1/screens/admin-session/verify` | Screen credential as Bearer token |
+| Revoke the TV's temporary settings session | `POST /api/v1/screens/admin-session/revoke` | Screen credential and `X-Admin-Session` |
+| Log out this screen and revoke its credential | `POST /api/v1/screens/logout` | Screen credential and `X-Admin-Session` |
 
 The dashboard-only endpoints `GET /pairing/sessions/verify` and
 `POST /pairing/sessions/approve` require an app-user Supabase access token. They
@@ -70,6 +72,40 @@ Device-authentication outcomes:
 | Missing/malformed Bearer credential | 401 | `INVALID_SCREEN_CREDENTIAL` |
 | No screen credential matches the supplied token | 404 | `SCREEN_NOT_FOUND` |
 | Credential was revoked or screen is `INACTIVE` | 401 | `SCREEN_DISCONNECTED` |
+
+### Protected TV settings session
+
+The dashboard creates a PIN for a screen with
+`POST /api/v1/screens/{screen_id}/admin-session`, authenticated by the app-user
+Supabase access token. The response contains `session_id`, a six-digit `pin`,
+and `expires_at`; the PIN is returned once and only its scrypt hash is stored.
+PINs expire after five minutes. The dashboard must deliver the PIN to the TV
+through its existing UX.
+
+The TV verifies it with `POST /api/v1/screens/admin-session/verify`, sending
+its screen credential as the Bearer token and `{"pin":"123456"}` in JSON.
+Success returns `session_id`, a one-time `session_token`, and `expires_at`.
+The TV stores that token securely and sends it in `X-Admin-Session` only for
+the logout and admin-session revoke requests documented here. It is scoped to
+the screen credential used during verification, expires after 15 minutes, and
+expires after five minutes without a protected action. Incorrect PIN attempts
+are limited to five per ten-minute window; excessive requests return
+`429 ADMIN_PIN_RATE_LIMITED`. Invalid PIN returns `401 INVALID_ADMIN_PIN`.
+
+Both protected requests use:
+
+```http
+Authorization: Bearer <screen-credential>
+X-Admin-Session: <session-token>
+```
+
+Missing, expired, revoked, or other-screen session tokens return
+`401 EXPIRED_SESSION`. A successful logout revokes both the screen credential
+and its current admin session. Revoke the temporary session with
+`POST /api/v1/screens/admin-session/revoke` (`204 No Content`) when leaving
+settings without logging out. Normal sync checks, sync acknowledgments,
+assigned-playlist requests, and playback reports continue to use only the
+screen credential; they do not require or refresh this temporary session.
 
 The TV should treat `SCREEN_NOT_FOUND` and `SCREEN_DISCONNECTED` as reasons to
 clear its locally stored credential and return to pairing. A user-initiated
@@ -385,8 +421,9 @@ for a missing pairing header or invalid UUID.
 ### 7. Check whether synchronization is needed (also heartbeat)
 
 **Method/path:** `POST /api/v1/screens/sync-check`
-**Authentication:** Screen credential Bearer token
-**Required header:** `Authorization: Bearer <screen-credential>`
+**Authentication:** Screen credential plus temporary settings session
+**Required headers:** `Authorization: Bearer <screen-credential>` and
+`X-Admin-Session: <session-token>`
 **Path/query/body:** None
 **Status:** `200 OK`
 
@@ -594,12 +631,13 @@ or oversized batch.
 **Success:** `204 No Content`
 
 The endpoint revokes the credential used for the request by setting its
-`revoked_at`; the credential record is retained for history. It does not delete
+`revoked_at` and revokes the temporary admin session. Both records are retained
+for history. It does not delete
 the screen, playlist assignment, or synchronization state. After a successful
 response, the TV clears the credential locally and returns to pairing. The
-revoked credential cannot authenticate later requests. Errors follow the
-screen-device authentication behavior: `401 INVALID_SCREEN_CREDENTIAL`, `401
-SCREEN_DISCONNECTED`, or `404 SCREEN_NOT_FOUND`.
+revoked credential cannot authenticate later requests. Errors include
+`401 INVALID_SCREEN_CREDENTIAL`, `401 SCREEN_DISCONNECTED`, `404 SCREEN_NOT_FOUND`,
+and `401 EXPIRED_SESSION` when the temporary session is missing or invalid.
 
 ## Media URLs, duration, and playback
 

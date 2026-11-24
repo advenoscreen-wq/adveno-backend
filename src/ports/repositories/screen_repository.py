@@ -9,7 +9,9 @@ from domain import (
 
 
 class ScreenRepository(Protocol):
-    async def get_by_id(self, screen_id: UUID, *, user_id: UUID | None = None) -> Screen | None: ...
+    async def get_by_id(
+        self, screen_id: UUID, *, user_id: UUID | None = None, for_update: bool = False
+    ) -> Screen | None: ...
 
     async def get_by_screen_code(
         self, screen_code: str, *, user_id: UUID | None = None

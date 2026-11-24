@@ -1,8 +1,10 @@
 """Results returned by screen use cases."""
 
 from dataclasses import dataclass
+from datetime import datetime
+from uuid import UUID
 
-from domain import MediaAsset, Playlist, PlaylistItem, Screen
+from domain import MediaAsset, Playlist, PlaylistItem, Screen, ScreenAdminSession, ScreenCredential
 
 
 @dataclass(frozen=True)
@@ -50,3 +52,24 @@ class ScreenSyncCheckResult:
 class ReportScreenPlaybackEventsResult:
     stored_count: int
     duplicate_count: int
+
+
+@dataclass(frozen=True)
+class CreateScreenAdminSessionResult:
+    session_id: UUID
+    pin: str
+    expires_at: datetime
+
+
+@dataclass(frozen=True)
+class VerifyScreenAdminSessionResult:
+    session_id: UUID
+    session_token: str
+    expires_at: datetime
+
+
+@dataclass(frozen=True)
+class ProtectedScreenAdminSession:
+    screen: Screen
+    credential: ScreenCredential
+    admin_session: ScreenAdminSession

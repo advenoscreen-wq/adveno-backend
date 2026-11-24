@@ -1,67 +1,47 @@
-"""Unit tests for screen-device logout."""
+"""Unit tests for protected screen-device logout."""
 
 import hashlib
+from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
 
-from application.exceptions.screen import ScreenDeviceNotFoundError, ScreenDisconnectedError
 from application.use_cases.screens.logout_screen_use_case import LogoutScreenUseCase
-from domain import Screen, ScreenCredential
-from domain.value_object import ScreenStatus
+from application.use_cases.screens.results import ProtectedScreenAdminSession
+from domain import Screen, ScreenAdminSession, ScreenCredential
 
 
 @pytest.mark.asyncio
-async def test_logout_revokes_authenticated_credential(
+async def test_logout_revokes_authenticated_credential_and_admin_session(
     logout_screen_use_case: LogoutScreenUseCase,
-    screen_repo: Mock,
     screen_credential_repo: Mock,
+    screen_admin_session_repo: Mock,
 ) -> None:
-    raw_credential = "screen-secret"
+    now = datetime.now(UTC)
     screen = Screen(user_id=uuid4(), name="Lobby TV")
-    device_credential = ScreenCredential(
+    credential = ScreenCredential(
         screen_id=screen.id,
-        credential_hash=hashlib.sha256(raw_credential.encode()).hexdigest(),
+        credential_hash=hashlib.sha256(b"screen-secret").hexdigest(),
     )
-    screen_repo.get_by_id.return_value = screen
-    screen_credential_repo.get_by_hash.return_value = device_credential
+    admin_session = ScreenAdminSession(
+        screen_id=screen.id,
+        code_hash="scrypt$pin-hash",
+        token_hash="hashed-session-token",
+        created_at=now - timedelta(minutes=1),
+        last_activity_at=now,
+        expires_at=now + timedelta(minutes=14),
+    )
 
-    await logout_screen_use_case(credential=raw_credential)
+    await logout_screen_use_case(
+        ProtectedScreenAdminSession(
+            screen=screen,
+            credential=credential,
+            admin_session=admin_session,
+        )
+    )
 
-    assert device_credential.revoked_at is not None
-    screen_repo.update.assert_awaited_once_with(screen)
-    screen_credential_repo.update.assert_awaited_once_with(device_credential)
-
-
-@pytest.mark.asyncio
-async def test_logout_returns_not_found_for_unknown_credential(
-    logout_screen_use_case: LogoutScreenUseCase,
-    screen_repo: Mock,
-    screen_credential_repo: Mock,
-) -> None:
-    screen_credential_repo.get_by_hash.return_value = None
-
-    with pytest.raises(ScreenDeviceNotFoundError):
-        await logout_screen_use_case(credential="unknown")
-
-    screen_repo.get_by_id.assert_not_awaited()
-    screen_credential_repo.update.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_logout_rejects_inactive_screen_without_revoking_credential(
-    logout_screen_use_case: LogoutScreenUseCase,
-    screen_repo: Mock,
-    screen_credential_repo: Mock,
-) -> None:
-    screen = Screen(user_id=uuid4(), name="Inactive TV", status=ScreenStatus.INACTIVE)
-    device_credential = ScreenCredential(screen_id=screen.id, credential_hash="stored-hash")
-    screen_repo.get_by_id.return_value = screen
-    screen_credential_repo.get_by_hash.return_value = device_credential
-
-    with pytest.raises(ScreenDisconnectedError):
-        await logout_screen_use_case(credential="screen-secret")
-
-    screen_repo.update.assert_not_awaited()
-    screen_credential_repo.update.assert_not_awaited()
+    assert credential.revoked_at is not None
+    assert admin_session.revoked_at is not None
+    screen_credential_repo.update.assert_awaited_once_with(credential)
+    screen_admin_session_repo.update.assert_awaited_once_with(admin_session)

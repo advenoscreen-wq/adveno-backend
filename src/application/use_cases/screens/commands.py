@@ -25,3 +25,14 @@ class PlaybackEventData:
 @dataclass(frozen=True)
 class ReportScreenPlaybackEventsCommand:
     events: list[PlaybackEventData]
+
+
+@dataclass(frozen=True)
+class VerifyScreenAdminSessionCommand:
+    pin: str
+
+
+@dataclass(frozen=True)
+class CreateScreenAdminSessionCommand:
+    screen_id: UUID
+    user_id: UUID

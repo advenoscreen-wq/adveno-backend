@@ -29,10 +29,17 @@ from application.use_cases.pairing.verify_screen_pairing_session_use_case import
 from application.use_cases.screens.acknowledge_screen_sync_use_case import (
     AcknowledgeScreenSyncUseCase,
 )
+from application.use_cases.screens.create_screen_admin_session_use_case import (
+    CreateScreenAdminSessionUseCase,
+)
 from application.use_cases.screens.logout_screen_use_case import LogoutScreenUseCase
+from application.use_cases.screens.verify_screen_admin_session_use_case import (
+    VerifyScreenAdminSessionUseCase,
+)
 from application.use_cases.screens.verify_screen_credential_use_case import (
     VerifyScreenCredentialUseCase,
 )
+from ports.repositories.screen_admin_session_repository import ScreenAdminSessionRepository
 from ports.repositories.screen_credential_repository import ScreenCredentialRepository
 from ports.repositories.screen_pairing_session_repository import (
     ScreenPairingSessionRepository,
@@ -42,6 +49,7 @@ from ports.repositories.screen_sync_state_repository import ScreenSyncStateRepos
 from ports.repositories.user_repository import UserRepository
 from ports.services.cache_service import CacheService
 from ports.services.oauth_provider import OAuthProvider
+from ports.services.pin_hasher import PinHasher
 
 
 def _async_port_mock(port: type, *methods: str) -> Mock:
@@ -62,7 +70,14 @@ def user_repo() -> Mock:
 
 @pytest.fixture
 def cache_service() -> Mock:
-    return _async_port_mock(CacheService, "set", "get", "delete", "pop")
+    return _async_port_mock(
+        CacheService,
+        "set",
+        "get",
+        "delete",
+        "pop",
+        "increment_with_ttl",
+    )
 
 
 @pytest.fixture
@@ -134,6 +149,30 @@ def screen_credential_repo() -> Mock:
     repository.save.side_effect = lambda credential: credential
     repository.update.side_effect = lambda credential: credential
     return repository
+
+
+@pytest.fixture
+def screen_admin_session_repo() -> Mock:
+    repository = _async_port_mock(
+        ScreenAdminSessionRepository,
+        "get_pending_pin_by_screen_id",
+        "get_by_screen_id_and_token_hash",
+        "save",
+        "update",
+        "revoke_pending_by_screen_id",
+        "revoke_all_for_screen",
+    )
+    repository.save.side_effect = lambda session: session
+    repository.update.side_effect = lambda session: session
+    return repository
+
+
+@pytest.fixture
+def pin_hasher() -> Mock:
+    hasher = _async_port_mock(PinHasher, "hash_pin", "verify_pin")
+    hasher.hash_pin.return_value = "scrypt$mock-hash"
+    hasher.verify_pin.return_value = True
+    return hasher
 
 
 @pytest.fixture
@@ -242,12 +281,43 @@ def verify_screen_pairing_session_use_case(
 
 @pytest.fixture
 def logout_screen_use_case(
-    screen_repo: Mock,
     screen_credential_repo: Mock,
+    screen_admin_session_repo: Mock,
 ) -> LogoutScreenUseCase:
     return LogoutScreenUseCase(
+        credential_repository=screen_credential_repo,
+        admin_session_repository=screen_admin_session_repo,
+    )
+
+
+@pytest.fixture
+def create_screen_admin_session_use_case(
+    screen_repo: Mock,
+    screen_admin_session_repo: Mock,
+    pin_hasher: Mock,
+) -> CreateScreenAdminSessionUseCase:
+    return CreateScreenAdminSessionUseCase(
+        screen_repository=screen_repo,
+        admin_session_repository=screen_admin_session_repo,
+        pin_hasher=pin_hasher,
+    )
+
+
+@pytest.fixture
+def verify_screen_admin_session_use_case(
+    screen_repo: Mock,
+    screen_credential_repo: Mock,
+    screen_admin_session_repo: Mock,
+    pin_hasher: Mock,
+    cache_service: Mock,
+) -> VerifyScreenAdminSessionUseCase:
+    cache_service.increment_with_ttl.return_value = 1
+    return VerifyScreenAdminSessionUseCase(
         screen_repository=screen_repo,
         credential_repository=screen_credential_repo,
+        admin_session_repository=screen_admin_session_repo,
+        pin_hasher=pin_hasher,
+        cache_service=cache_service,
     )
 
 

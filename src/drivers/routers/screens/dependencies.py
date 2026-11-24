@@ -2,13 +2,16 @@
 
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.repositories.media_asset_repository import SqlAlchemyMediaAssetRepository
 from adapters.repositories.playlist_item_repository import SqlAlchemyPlaylistItemRepository
 from adapters.repositories.playlist_repository import SqlAlchemyPlaylistRepository
+from adapters.repositories.screen_admin_session_repository import (
+    SqlAlchemyScreenAdminSessionRepository,
+)
 from adapters.repositories.screen_credential_repository import (
     SqlAlchemyScreenCredentialRepository,
 )
@@ -21,11 +24,18 @@ from adapters.repositories.screen_playlist_assignment_repository import (
 from adapters.repositories.screen_repository import SqlAlchemyScreenRepository
 from adapters.repositories.screen_sync_state_repository import SqlAlchemyScreenSyncStateRepository
 from application.exceptions.authentication import InvalidScreenCredentialError
+from application.exceptions.screen import ExpiredScreenAdminSessionError
 from application.use_cases.screens.acknowledge_screen_sync_use_case import (
     AcknowledgeScreenSyncUseCase,
 )
 from application.use_cases.screens.assign_playlist_use_case import AssignPlaylistUseCase
+from application.use_cases.screens.authorize_screen_admin_session_use_case import (
+    AuthorizeScreenAdminSessionUseCase,
+)
 from application.use_cases.screens.check_screen_sync_use_case import CheckScreenSyncUseCase
+from application.use_cases.screens.create_screen_admin_session_use_case import (
+    CreateScreenAdminSessionUseCase,
+)
 from application.use_cases.screens.delete_screen_use_case import DeleteScreenUseCase
 from application.use_cases.screens.disconnect_screen_use_case import DisconnectScreenUseCase
 from application.use_cases.screens.get_assigned_playlist_use_case import (
@@ -37,17 +47,25 @@ from application.use_cases.screens.logout_screen_use_case import LogoutScreenUse
 from application.use_cases.screens.report_screen_playback_events_use_case import (
     ReportScreenPlaybackEventsUseCase,
 )
+from application.use_cases.screens.results import ProtectedScreenAdminSession
+from application.use_cases.screens.revoke_screen_admin_session_use_case import (
+    RevokeScreenAdminSessionUseCase,
+)
 from application.use_cases.screens.unassign_playlist_use_case import UnassignPlaylistUseCase
 from application.use_cases.screens.update_screen_use_case import UpdateScreenUseCase
+from application.use_cases.screens.verify_screen_admin_session_use_case import (
+    VerifyScreenAdminSessionUseCase,
+)
 from application.use_cases.screens.verify_screen_credential_use_case import (
     VerifyScreenCredentialUseCase,
 )
 from drivers.database.database import session_dependency
-from drivers.routers.dependencies import SettingsDependency
+from drivers.routers.dependencies import CacheService, PinHasherDependency, SettingsDependency
 from drivers.routers.media.dependencies import StorageServiceDependency
 from ports.repositories.media_asset_repository import MediaAssetRepository
 from ports.repositories.playlist_item_repository import PlaylistItemRepository
 from ports.repositories.playlist_repository import PlaylistRepository
+from ports.repositories.screen_admin_session_repository import ScreenAdminSessionRepository
 from ports.repositories.screen_credential_repository import ScreenCredentialRepository
 from ports.repositories.screen_playback_event_repository import ScreenPlaybackEventRepository
 from ports.repositories.screen_playlist_assignment_repository import (
@@ -104,6 +122,96 @@ def get_screen_credential_repository(
     session: Annotated[AsyncSession, Depends(session_dependency)],
 ) -> ScreenCredentialRepository:
     return SqlAlchemyScreenCredentialRepository(session)
+
+
+def get_screen_admin_session_repository(
+    session: Annotated[AsyncSession, Depends(session_dependency)],
+) -> ScreenAdminSessionRepository:
+    return SqlAlchemyScreenAdminSessionRepository(session)
+
+
+ScreenAdminSessionRepositoryDependency = Annotated[
+    ScreenAdminSessionRepository,
+    Depends(get_screen_admin_session_repository),
+]
+
+
+def get_create_screen_admin_session_use_case(
+    screen_repository: ScreenRepositoryDependency,
+    admin_session_repository: ScreenAdminSessionRepositoryDependency,
+    pin_hasher: PinHasherDependency,
+) -> CreateScreenAdminSessionUseCase:
+    return CreateScreenAdminSessionUseCase(
+        screen_repository=screen_repository,
+        admin_session_repository=admin_session_repository,
+        pin_hasher=pin_hasher,
+    )
+
+
+CreateScreenAdminSession = Annotated[
+    CreateScreenAdminSessionUseCase,
+    Depends(get_create_screen_admin_session_use_case),
+]
+
+
+def get_verify_screen_admin_session_use_case(
+    screen_repository: ScreenRepositoryDependency,
+    credential_repository: Annotated[
+        ScreenCredentialRepository,
+        Depends(get_screen_credential_repository),
+    ],
+    admin_session_repository: ScreenAdminSessionRepositoryDependency,
+    pin_hasher: PinHasherDependency,
+    cache_service: CacheService,
+) -> VerifyScreenAdminSessionUseCase:
+    return VerifyScreenAdminSessionUseCase(
+        screen_repository=screen_repository,
+        credential_repository=credential_repository,
+        admin_session_repository=admin_session_repository,
+        pin_hasher=pin_hasher,
+        cache_service=cache_service,
+    )
+
+
+VerifyScreenAdminSession = Annotated[
+    VerifyScreenAdminSessionUseCase,
+    Depends(get_verify_screen_admin_session_use_case),
+]
+
+
+def get_authorize_screen_admin_session_use_case(
+    screen_repository: ScreenRepositoryDependency,
+    credential_repository: Annotated[
+        ScreenCredentialRepository,
+        Depends(get_screen_credential_repository),
+    ],
+    admin_session_repository: ScreenAdminSessionRepositoryDependency,
+) -> AuthorizeScreenAdminSessionUseCase:
+    return AuthorizeScreenAdminSessionUseCase(
+        screen_repository=screen_repository,
+        credential_repository=credential_repository,
+        admin_session_repository=admin_session_repository,
+    )
+
+
+AuthorizeScreenAdminSession = Annotated[
+    AuthorizeScreenAdminSessionUseCase,
+    Depends(get_authorize_screen_admin_session_use_case),
+]
+
+
+def get_revoke_screen_admin_session_use_case(
+    admin_session_repository: ScreenAdminSessionRepositoryDependency,
+) -> RevokeScreenAdminSessionUseCase:
+    return RevokeScreenAdminSessionUseCase(
+        admin_session_repository=admin_session_repository,
+    )
+
+
+RevokeScreenAdminSession = Annotated[
+    RevokeScreenAdminSessionUseCase,
+    Depends(get_revoke_screen_admin_session_use_case),
+]
 
 
 def get_screen_playback_event_repository(
@@ -244,6 +352,22 @@ async def get_screen_device_credential(
 ScreenDeviceCredential = Annotated[str, Depends(get_screen_device_credential)]
 
 
+async def get_protected_screen_admin_session(
+    use_case: AuthorizeScreenAdminSession,
+    credential: ScreenDeviceCredential,
+    session_token: Annotated[str | None, Header(alias="X-Admin-Session")] = None,
+) -> ProtectedScreenAdminSession:
+    if not session_token:
+        raise ExpiredScreenAdminSessionError()
+    return await use_case(credential=credential, session_token=session_token)
+
+
+ProtectedScreenAdminSessionDependency = Annotated[
+    ProtectedScreenAdminSession,
+    Depends(get_protected_screen_admin_session),
+]
+
+
 def get_list_screens_use_case(
     screen_repository: ScreenRepositoryDependency,
 ) -> ListScreensUseCase:
@@ -333,10 +457,12 @@ def get_disconnect_screen_use_case(
         ScreenCredentialRepository,
         Depends(get_screen_credential_repository),
     ],
+    admin_session_repository: ScreenAdminSessionRepositoryDependency,
 ) -> DisconnectScreenUseCase:
     return DisconnectScreenUseCase(
         screen_repository=screen_repository,
         credential_repository=credential_repository,
+        admin_session_repository=admin_session_repository,
     )
 
 
@@ -347,15 +473,15 @@ DisconnectScreen = Annotated[
 
 
 def get_logout_screen_use_case(
-    screen_repository: ScreenRepositoryDependency,
     credential_repository: Annotated[
         ScreenCredentialRepository,
         Depends(get_screen_credential_repository),
     ],
+    admin_session_repository: ScreenAdminSessionRepositoryDependency,
 ) -> LogoutScreenUseCase:
     return LogoutScreenUseCase(
-        screen_repository=screen_repository,
         credential_repository=credential_repository,
+        admin_session_repository=admin_session_repository,
     )
 
 

@@ -5,6 +5,7 @@ from ports.repositories.audit_log_repository import AuditLogRepository
 from ports.repositories.media_asset_repository import MediaAssetRepository
 from ports.repositories.playlist_item_repository import PlaylistItemRepository
 from ports.repositories.playlist_repository import PlaylistRepository
+from ports.repositories.screen_admin_session_repository import ScreenAdminSessionRepository
 from ports.repositories.screen_credential_repository import ScreenCredentialRepository
 from ports.repositories.screen_pairing_session_repository import ScreenPairingSessionRepository
 from ports.repositories.screen_playback_event_repository import ScreenPlaybackEventRepository
@@ -22,6 +23,7 @@ __all__ = [
     "ScreenPairingSessionRepository",
     "ScreenPlaybackEventRepository",
     "ScreenCredentialRepository",
+    "ScreenAdminSessionRepository",
     "MediaAssetRepository",
     "PlaylistRepository",
     "PlaylistItemRepository",

@@ -3,6 +3,8 @@
 from uuid import UUID
 
 from application.exceptions.screen import ScreenNotFoundError
+from domain.entities.common import utc_now
+from ports.repositories.screen_admin_session_repository import ScreenAdminSessionRepository
 from ports.repositories.screen_credential_repository import ScreenCredentialRepository
 from ports.repositories.screen_repository import ScreenRepository
 
@@ -13,9 +15,11 @@ class DisconnectScreenUseCase:
         *,
         screen_repository: ScreenRepository,
         credential_repository: ScreenCredentialRepository,
+        admin_session_repository: ScreenAdminSessionRepository,
     ) -> None:
         self._screen_repository = screen_repository
         self._credential_repository = credential_repository
+        self._admin_session_repository = admin_session_repository
 
     async def __call__(self, *, screen_id: UUID, user_id: UUID) -> None:
         screen = await self._screen_repository.get_by_id(screen_id, user_id=user_id)
@@ -26,8 +30,7 @@ class DisconnectScreenUseCase:
             screen_id,
             for_update=True,
         )
-        if credential is None:
-            return
-
-        credential.revoke()
-        await self._credential_repository.update(credential)
+        if credential is not None:
+            credential.revoke()
+            await self._credential_repository.update(credential)
+        await self._admin_session_repository.revoke_all_for_screen(screen_id, at=utc_now())
