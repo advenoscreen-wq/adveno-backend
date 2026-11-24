@@ -4,7 +4,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query, Response, status
 
-from application.use_cases.screens.commands import AcknowledgeScreenSyncCommand
+from application.use_cases.screens.commands import (
+    AcknowledgeScreenSyncCommand,
+    PlaybackEventData,
+    ReportScreenPlaybackEventsCommand,
+)
 from drivers.routers.dependencies import CurrentUser
 from drivers.routers.screens.dependencies import (
     AcknowledgeScreenSync,
@@ -16,6 +20,7 @@ from drivers.routers.screens.dependencies import (
     GetScreen,
     ListScreens,
     LogoutScreen,
+    ReportScreenPlaybackEvents,
     ScreenDeviceCredential,
     UnassignPlaylist,
     UpdateScreen,
@@ -26,6 +31,8 @@ from drivers.schemas.playlists import PlaylistResponse
 from drivers.schemas.screens import (
     AssignedScreenPlaylistResponse,
     AssignPlaylistRequest,
+    ReportScreenPlaybackEventsRequest,
+    ReportScreenPlaybackEventsResponse,
     ScreenCredentialVerificationResponse,
     ScreenListItemResponse,
     ScreenPlaylistAssignmentResponse,
@@ -109,6 +116,41 @@ async def acknowledge_screen_sync(
         command=AcknowledgeScreenSyncCommand(applied_revision=body.applied_revision),
     )
     return Response(status_code=status.HTTP_202_ACCEPTED)
+
+
+@router.post(
+    "/playback-events",
+    response_model=ReportScreenPlaybackEventsResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def report_screen_playback_events(
+    body: ReportScreenPlaybackEventsRequest,
+    use_case: ReportScreenPlaybackEvents,
+    credential: ScreenDeviceCredential,
+) -> ReportScreenPlaybackEventsResponse:
+    """Store completed ad playback events reported by this screen."""
+    result = await use_case(
+        credential=credential,
+        command=ReportScreenPlaybackEventsCommand(
+            events=[
+                PlaybackEventData(
+                    event_id=event.event_id,
+                    playlist_id=event.playlist_id,
+                    playlist_item_id=event.playlist_item_id,
+                    media_asset_id=event.media_asset_id,
+                    playlist_version=event.playlist_version,
+                    media_checksum=event.media_checksum,
+                    played_at=event.played_at,
+                    played_complete_at=event.played_complete_at,
+                )
+                for event in body.events
+            ]
+        ),
+    )
+    return ReportScreenPlaybackEventsResponse(
+        stored_count=result.stored_count,
+        duplicate_count=result.duplicate_count,
+    )
 
 
 @router.get(

@@ -139,6 +139,7 @@ hashes.
 | `ScreenPlaylistAssignment` | `id: UUID`; `screen_id`, `playlist_id: UUID`; `assigned_at: datetime`; `unassigned_at: datetime | None` | Assignment history. An assignment is active while `unassigned_at` is null. The TV playlist endpoint uses the active assignment. |
 | `Playlist` | `id: UUID`; `user_id: UUID`; `name: str`; `description: str | None`; `version: int = 1`; `items: list[PlaylistItem]`; `created_at`, `updated_at: datetime` | Ordered media collection returned to a screen with its version and items. The TV response serializes media details and a public media URL. |
 | `PlaylistItem` | `id: UUID`; `playlist_id`, `media_asset_id: UUID`; `position: int`; `duration_seconds: int | None`; `created_at: datetime` | One ordered media entry. Positions and any supplied duration must be positive. TV response includes item duration and nested media metadata. |
+| `ScreenPlaybackEvent` | `event_id`, `screen_id`, `playlist_id`, `playlist_item_id`, `media_asset_id: UUID`; `playlist_version: int`; `media_checksum: str`; `played_at`, `received_at: datetime`; `played_complete_at: datetime | None` | Immutable screen-reported playback record. Identifier values remain available after associated playlist, item, media, or screen records are deleted. |
 | `MediaAsset` | `id: UUID`; `user_id: UUID`; `name`, `mime_type`, `storage_path`, `checksum: str`; `media_type: MediaType`; `file_size: int`; `width`, `height`, `duration_seconds: int | None`; `status: MediaStatus = ACTIVE`; `created_at`, `updated_at: datetime` | Stored image/video metadata. Only active media is playlist-compatible. The TV playlist response adds `media_url`; the entity itself has no URL field. |
 | `AuditLog` | `id: UUID`; `action: str`; `admin_id`, `screen_id: UUID | None`; `details: dict[str, Any]`; `created_at: datetime` | Immutable audit event; not part of the current TV response contract. |
 | `AdminProfile` | Alias of `User`; same fields as `User` | Backward-compatible alias, not a separate persisted/domain shape. |
@@ -538,7 +539,53 @@ INVALID_SCREEN_CREDENTIAL`, `401 SCREEN_DISCONNECTED`, or `404
 SCREEN_NOT_FOUND`. Missing sync state returns `404 SCREEN_SYNC_STATE_NOT_FOUND`;
 a negative or malformed revision returns `422`.
 
-### 11. Log out the screen
+### 11. Report completed ad playback events
+
+**Method/path:** `POST /api/v1/screens/playback-events`
+**Authentication:** Screen credential Bearer token
+**Required header:** `Authorization: Bearer <screen-credential>`
+**Request schema:** `ReportScreenPlaybackEventsRequest`
+**Success:** `202 Accepted`
+
+Request body:
+
+```json
+{
+  "events": [
+    {
+      "event_id": "f6b9d59d-9062-45f3-96cc-a899278c12e4",
+      "playlist_id": "5fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "playlist_item_id": "6fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "media_asset_id": "7fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "playlist_version": 3,
+      "media_checksum": "checksum-from-assigned-playlist",
+      "played_at": "2026-11-24T10:15:00Z",
+      "played_complete_at": "2026-11-24T10:15:15Z"
+    }
+  ]
+}
+```
+
+`events` must contain 1–100 entries. The TV generates one `event_id` per
+playback and reuses it when retrying a report. `played_at` is required;
+`played_complete_at` is optional for playback interrupted before completion.
+Timestamps must include a timezone, and a supplied completion cannot precede
+start. The server derives `screen_id`
+from the authenticated credential and records `received_at` itself. The
+response contains `stored_count` and `duplicate_count`; duplicate event IDs
+for that screen are ignored. Events are retained independently of mutable
+playlist, item, media, and screen records. These are device-reported events;
+the backend does not independently verify that media was displayed.
+
+```json
+{"stored_count":1,"duplicate_count":0}
+```
+
+Errors: `401 INVALID_SCREEN_CREDENTIAL`, `401 SCREEN_DISCONNECTED`, or `404
+SCREEN_NOT_FOUND` for authentication; `422` for invalid event data or an empty
+or oversized batch.
+
+### 12. Log out the screen
 
 **Method/path:** `POST /api/v1/screens/logout`
 **Authentication:** Screen credential Bearer token
@@ -593,7 +640,7 @@ beyond these stored fields is implemented in the API.
 - Domain methods exist for `SYNCING`, `SYNCED`, and `FAILED`, but source search
   shows no application route/use case calls them. `SyncStatus` is not exposed in
   any screen-device response.
-- No API accepts playback events, device error reports, manual sync commands,
+- No API accepts device error reports or manual sync commands,
   advertisement schedules, or a heartbeat body with device health details.
 
 The TV sync loop is: check `need_sync`; when true, fetch

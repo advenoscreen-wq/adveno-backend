@@ -8,6 +8,7 @@ from drivers.database.models.playlist_item import PlaylistItemModel
 from drivers.database.models.screen import ScreenModel
 from drivers.database.models.screen_credential import ScreenCredentialModel
 from drivers.database.models.screen_pairing_session import ScreenPairingSessionModel
+from drivers.database.models.screen_playback_event import ScreenPlaybackEventModel
 from drivers.database.models.screen_playlist_assignment import ScreenPlaylistAssignmentModel
 from drivers.database.models.screen_sync_state import ScreenSyncStateModel
 from drivers.database.models.user import UserModel
@@ -21,6 +22,7 @@ __all__ = [
     "ScreenCredentialModel",
     "ScreenModel",
     "ScreenPairingSessionModel",
+    "ScreenPlaybackEventModel",
     "ScreenPlaylistAssignmentModel",
     "ScreenSyncStateModel",
     "UserModel",

@@ -44,3 +44,9 @@ class ListScreensResult:
 class ScreenSyncCheckResult:
     need_sync: bool
     desired_revision: int
+
+
+@dataclass(frozen=True)
+class ReportScreenPlaybackEventsResult:
+    stored_count: int
+    duplicate_count: int

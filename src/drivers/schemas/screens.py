@@ -3,7 +3,15 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import AliasPath, BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    AliasPath,
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+)
 
 from domain.value_object import MediaStatus, MediaType, ScreenStatus
 from drivers.schemas.playlists import PlaylistResponse
@@ -68,6 +76,47 @@ class ScreenSyncAcknowledgmentRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     applied_revision: int = Field(ge=0)
+
+
+class ScreenPlaybackEventRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    event_id: UUID
+    playlist_id: UUID
+    playlist_item_id: UUID
+    media_asset_id: UUID
+    playlist_version: int = Field(ge=1)
+    media_checksum: str = Field(min_length=1, max_length=255)
+    played_at: AwareDatetime
+    played_complete_at: AwareDatetime | None = None
+
+    @field_validator("media_checksum")
+    @classmethod
+    def validate_checksum(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("media_checksum cannot be blank")
+        return value
+
+    @field_validator("played_complete_at")
+    @classmethod
+    def validate_completion_time(
+        cls, value: AwareDatetime | None, info: ValidationInfo
+    ) -> AwareDatetime | None:
+        played_at = info.data.get("played_at")
+        if value is not None and played_at is not None and value < played_at:
+            raise ValueError("played_complete_at cannot precede played_at")
+        return value
+
+
+class ReportScreenPlaybackEventsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    events: list[ScreenPlaybackEventRequest] = Field(min_length=1, max_length=100)
+
+
+class ReportScreenPlaybackEventsResponse(BaseModel):
+    stored_count: int = Field(ge=0)
+    duplicate_count: int = Field(ge=0)
 
 
 class ScreenPlaylistMediaResponse(BaseModel):

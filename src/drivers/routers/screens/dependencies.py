@@ -12,6 +12,9 @@ from adapters.repositories.playlist_repository import SqlAlchemyPlaylistReposito
 from adapters.repositories.screen_credential_repository import (
     SqlAlchemyScreenCredentialRepository,
 )
+from adapters.repositories.screen_playback_event_repository import (
+    SqlAlchemyScreenPlaybackEventRepository,
+)
 from adapters.repositories.screen_playlist_assignment_repository import (
     SqlAlchemyScreenPlaylistAssignmentRepository,
 )
@@ -31,6 +34,9 @@ from application.use_cases.screens.get_assigned_playlist_use_case import (
 from application.use_cases.screens.get_screen_use_case import GetScreenUseCase
 from application.use_cases.screens.list_screens_use_case import ListScreensUseCase
 from application.use_cases.screens.logout_screen_use_case import LogoutScreenUseCase
+from application.use_cases.screens.report_screen_playback_events_use_case import (
+    ReportScreenPlaybackEventsUseCase,
+)
 from application.use_cases.screens.unassign_playlist_use_case import UnassignPlaylistUseCase
 from application.use_cases.screens.update_screen_use_case import UpdateScreenUseCase
 from application.use_cases.screens.verify_screen_credential_use_case import (
@@ -43,6 +49,7 @@ from ports.repositories.media_asset_repository import MediaAssetRepository
 from ports.repositories.playlist_item_repository import PlaylistItemRepository
 from ports.repositories.playlist_repository import PlaylistRepository
 from ports.repositories.screen_credential_repository import ScreenCredentialRepository
+from ports.repositories.screen_playback_event_repository import ScreenPlaybackEventRepository
 from ports.repositories.screen_playlist_assignment_repository import (
     ScreenPlaylistAssignmentRepository,
 )
@@ -97,6 +104,36 @@ def get_screen_credential_repository(
     session: Annotated[AsyncSession, Depends(session_dependency)],
 ) -> ScreenCredentialRepository:
     return SqlAlchemyScreenCredentialRepository(session)
+
+
+def get_screen_playback_event_repository(
+    session: Annotated[AsyncSession, Depends(session_dependency)],
+) -> ScreenPlaybackEventRepository:
+    return SqlAlchemyScreenPlaybackEventRepository(session)
+
+
+def get_report_screen_playback_events_use_case(
+    screen_repository: ScreenRepositoryDependency,
+    credential_repository: Annotated[
+        ScreenCredentialRepository,
+        Depends(get_screen_credential_repository),
+    ],
+    playback_event_repository: Annotated[
+        ScreenPlaybackEventRepository,
+        Depends(get_screen_playback_event_repository),
+    ],
+) -> ReportScreenPlaybackEventsUseCase:
+    return ReportScreenPlaybackEventsUseCase(
+        screen_repository=screen_repository,
+        credential_repository=credential_repository,
+        playback_event_repository=playback_event_repository,
+    )
+
+
+ReportScreenPlaybackEvents = Annotated[
+    ReportScreenPlaybackEventsUseCase,
+    Depends(get_report_screen_playback_events_use_case),
+]
 
 
 def get_update_screen_use_case(
